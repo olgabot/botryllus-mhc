@@ -92,7 +92,7 @@ def get_kmers_for_hashvals(sequence, hashvals, ksize, moltype, input_is_protein)
         kmer_encoded, kmer_in_seq = get_kmer_moltype(
             sequence, start, ksize, moltype, input_is_protein
         )
-
+        
         # NOTE: we do not avoid non-ACGT characters, because those k-mers,
         # when hashed, shouldn't match anything that sourmash outputs.
         hashval = hash_murmur(kmer_encoded)
