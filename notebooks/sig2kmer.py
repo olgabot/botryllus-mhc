@@ -112,7 +112,7 @@ def get_kmers_for_hashvals(sequence, hashvals, ksize, moltype, input_is_protein)
         # when hashed, shouldn't match anything that sourmash outputs.
         hashval = hash_murmur(kmer_encoded)
         if hashval in hashvals:
-            yield kmer_encoded, kmer_in_seq, hashval, start
+            yield kmer_in_seq, kmer_encoded, hashval, start
 
 
 def get_matching_hashes_in_file(
