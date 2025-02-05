@@ -1,15 +1,39 @@
 
 import sourmash
-from orpheum.sequence_encodings import encode_peptide
 
 
 import pandas as pd
+
+def encode_protein(sequence, moltype):
+    """Convert protein sequence from 20-letter amino acid alphabet to degenerate alphabet"""
+    # Made with ChatGPT's help
+    # Slightly faster than other version (3.05 µs/loop for this one vs 3.4 µs/loop for the other one)
+    # Pre-determine the alphabet function based on moltype
+    if moltype == "hp":
+        alphabet_func = sourmash._lowlevel.lib.sourmash_aa_to_hp
+    elif moltype == "dayhoff":
+        alphabet_func = sourmash._lowlevel.lib.sourmash_aa_to_dayhoff
+    elif moltype == "DNA" or moltype == "protein":
+        # No transformation on the moltype -> Return None
+        return
+    else:
+        raise ValueError(f"Unknown moltype: {moltype}")
+
+    # Convert the entire sequence to bytes once
+    byte_sequence = sequence.encode("utf-8")
+
+    # Apply the alphabet function to each byte in the sequence and join the result
+    degenerate = b"".join(
+        alphabet_func(letter.to_bytes(1, "big")) for letter in byte_sequence
+    ).decode()
+
+    return degenerate
 
 def get_encoded_kmer_hashvals(sequence, name, encoding="hp", K=24, sigobj=None):
     lines = []
     for i in range(0, len(sequence) - K + 1):
         kmer = sequence[i : i + K]
-        kmer_encoded = encode_peptide(kmer, encoding)
+        kmer_encoded = encode_protein(kmer, encoding)
         hashvals = sigobj.minhash.seq_to_hashes(kmer, is_protein=True)
 
         # if len(hashval) == 1:
