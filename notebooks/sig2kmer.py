@@ -21,36 +21,39 @@ NOTIFY_EVERY_BP = int(1e5)
 def degenerate_protein_chatgpt(sequence, moltype):
     """Convert protein sequence from 20-letter amino acid alphabet to degenerate alphabet"""
     # Pre-determine the alphabet function based on moltype
-    if moltype == 'hp':
+    if moltype == "hp":
         alphabet_func = sourmash._lowlevel.lib.sourmash_aa_to_hp
-    elif moltype == 'dayhoff':
+    elif moltype == "dayhoff":
         alphabet_func = sourmash._lowlevel.lib.sourmash_aa_to_dayhoff
     else:
         raise ValueError(f"Unknown moltype: {moltype}")
 
     # Convert the entire sequence to bytes once
-    byte_sequence = sequence.encode('utf-8')
+    byte_sequence = sequence.encode("utf-8")
 
     # Apply the alphabet function to each byte in the sequence and join the result
-    degenerate = b''.join(alphabet_func(letter.to_bytes(1, 'big')) for letter in byte_sequence).decode()
+    degenerate = b"".join(
+        alphabet_func(letter.to_bytes(1, "big")) for letter in byte_sequence
+    ).decode()
 
     return degenerate
 
+
 def degenerate_protein(sequence, moltype):
     """Convert protein sequence from 20-letter amino acid alphabet to degenerate alphabet"""
-    if moltype == 'hp':
+    if moltype == "hp":
         alphabet = sourmash._lowlevel.lib.sourmash_aa_to_hp
-    elif moltype == 'dayhoff':
+    elif moltype == "dayhoff":
         alphabet = sourmash._lowlevel.lib.sourmash_aa_to_dayhoff
     else:
         raise ValueError(f"Unknown moltype: {moltype}")
 
     # Convert the entire sequence to bytes once
-    byte_encoded = (x.encode('utf-8') for x in sequence)
-    
-    degenerate = b''.join(alphabet(letter) for letter in byte_encoded).decode()
+    byte_encoded = (x.encode("utf-8") for x in sequence)
+
+    degenerate = b"".join(alphabet(letter) for letter in byte_encoded).decode()
     return degenerate
-    
+
 
 def get_kmer_moltype(sequence, start, ksize, moltype, input_is_protein):
     kmer_in_seq = sequence[start : start + ksize]
@@ -92,7 +95,7 @@ def get_kmers_for_hashvals(sequence, hashvals, ksize, moltype, input_is_protein)
         kmer_encoded, kmer_in_seq = get_kmer_moltype(
             sequence, start, ksize, moltype, input_is_protein
         )
-        
+
         # NOTE: we do not avoid non-ACGT characters, because those k-mers,
         # when hashed, shouldn't match anything that sourmash outputs.
         hashval = hash_murmur(kmer_encoded)
@@ -121,7 +124,11 @@ def get_matching_hashes_in_file(
         while n >= watermark:
             notify(
                 "...Searched {:d} residues,\tfound {} kmers in\t{} seqs from\t{}",
-                    watermark, found_kmers, n_seq, filename, end='\r'
+                watermark,
+                found_kmers,
+                n_seq,
+                filename,
+                end="\r",
             )
             watermark += NOTIFY_EVERY_BP
 
@@ -142,7 +149,14 @@ def get_matching_hashes_in_file(
                 m += len(record.sequence)
             if kmerout_w:
                 kmerout_w.writerow(
-                    [kmer_in_seq, kmer_encoded, str(hashval), i, record["name"], filename]
+                    [
+                        kmer_in_seq,
+                        kmer_encoded,
+                        str(hashval),
+                        i,
+                        record["name"],
+                        filename,
+                    ]
                 )
 
             if first:
@@ -187,7 +201,14 @@ def main():
         kmerout_fp = open(args.output_kmers, "wt")
         kmerout_w = csv.writer(kmerout_fp)
         kmerout_w.writerow(
-            ["kmer_in_sequence", "kmer_in_alphabet", "hashval", 'start', "read_name", "filename"]
+            [
+                "kmer_in_sequence",
+                "kmer_in_alphabet",
+                "hashval",
+                "start",
+                "read_name",
+                "filename",
+            ]
         )
 
     # Ensure that protein ksizes are divisible by 3
@@ -203,9 +224,9 @@ def main():
 
     # first, load the signature and extract the hashvals
     moltype = calculate_moltype(args)
-    sigobj = sourmash.load_one_signature(
+    sigobj = list(sourmash.load_file_as_signatures(
         args.query, ksize=args.ksize, select_moltype=moltype
-    )
+    )).pop()
     query_hashvals = set(sigobj.minhash.hashes.keys())
     query_ksize = sigobj.minhash.ksize
 
