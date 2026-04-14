@@ -18,16 +18,17 @@ WORK_DIR ?= work
 INTERPROSCAN_DB ?= $(HOME)/data/interproscan
 
 # InterProScan batch size (PR #79 feature: groups proteins into batches)
-INTERPROSCAN_BATCH_SIZE ?= 100
+INTERPROSCAN_BATCH_SIZE ?= 1000
 
 # InterProScan applications
 # Full set (slow - PANTHER alone can take >12h at --cpu 1): Hamap,PANTHER,PIRSF,TIGRFAM,sfld
 # Fast subset for testing (Hamap only - profile alignment, no HMMER search; TIGRFAM/PIRSF take >1h even for 10 proteins):
 TEST_INTERPROSCAN_APPS ?= Hamap
-INTERPROSCAN_APPS ?= Hamap,PANTHER,PIRSF,TIGRFAM,sfld
+# Pfam uses HMMER internally in InterProScan
+INTERPROSCAN_APPS ?= Hamap,PANTHER,PIRSF,TIGRFAM,sfld,Pfam
 
-# Common flags: skip everything except InterProScan
-SKIP_FLAGS = --skip_s4pred --skip_pfam --skip_funfam
+# No skip flags: run s4pred (secondary structure), pfam (standalone HMMER/Pfam), and funfam (FunFAM)
+SKIP_FLAGS =
 
 .PHONY: help test run resume clean check-fasta
 
