@@ -18,7 +18,7 @@ WORK_DIR ?= work
 INTERPROSCAN_DB ?= $(HOME)/data/interproscan
 
 # InterProScan batch size (PR #79 feature: groups proteins into batches)
-INTERPROSCAN_BATCH_SIZE ?= 1000
+INTERPROSCAN_BATCH_SIZE ?= 10
 
 # InterProScan applications
 # Full set (slow - PANTHER alone can take >12h at --cpu 1): Hamap,PANTHER,PIRSF,TIGRFAM,sfld
