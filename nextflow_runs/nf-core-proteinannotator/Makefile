@@ -14,8 +14,10 @@ PROFILE ?= docker
 PIPELINE_BRANCH ?= olgabot/interproscan-batches
 WORK_DIR ?= work
 
-# InterProScan database (downloaded once and reused)
+# InterProScan database (downloaded once and reused).
+# If the path doesn't exist, omit the flag so the pipeline downloads it automatically.
 INTERPROSCAN_DB ?= $(HOME)/data/interproscan
+INTERPROSCAN_DB_FLAG = $(if $(wildcard $(INTERPROSCAN_DB)),--interproscan_db $(INTERPROSCAN_DB),)
 
 # InterProScan batch size (PR #79 feature: groups proteins into batches)
 INTERPROSCAN_BATCH_SIZE ?= 10
@@ -63,7 +65,7 @@ test:
 	    --outdir $(TEST_OUTPUT_DIR) \
 	    -work-dir $(WORK_DIR) \
 	    $(SKIP_FLAGS) \
-	    --interproscan_db $(INTERPROSCAN_DB) \
+	    $(INTERPROSCAN_DB_FLAG) \
 	    --interproscan_applications $(TEST_INTERPROSCAN_APPS) \
 	    --interproscan_batch_size $(INTERPROSCAN_BATCH_SIZE)
 
@@ -85,7 +87,7 @@ run: $(CLEAN_FASTA)
 	    --outdir $(OUTPUT_DIR) \
 	    -work-dir $(WORK_DIR) \
 	    $(SKIP_FLAGS) \
-	    --interproscan_db $(INTERPROSCAN_DB) \
+	    $(INTERPROSCAN_DB_FLAG) \
 	    --interproscan_applications $(INTERPROSCAN_APPS) \
 	    --interproscan_batch_size $(INTERPROSCAN_BATCH_SIZE)
 
@@ -100,7 +102,7 @@ resume: $(CLEAN_FASTA)
 	    --outdir $(OUTPUT_DIR) \
 	    -work-dir $(WORK_DIR) \
 	    $(SKIP_FLAGS) \
-	    --interproscan_db $(INTERPROSCAN_DB) \
+	    $(INTERPROSCAN_DB_FLAG) \
 	    --interproscan_applications $(INTERPROSCAN_APPS) \
 	    --interproscan_batch_size $(INTERPROSCAN_BATCH_SIZE) \
 	    -resume
