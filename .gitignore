@@ -141,8 +141,16 @@ nextflow_runs/**/.nextflow.log*
 nextflow_runs/**/samplesheet_*.csv
 nextflow_runs/**/*.fa
 nextflow_runs/**/*.fasta
+nextflow_runs/**/params.*.yml
+nextflow_runs/**/.last_run_id
+nextflow_runs/**/trace-*.txt
+nextflow_runs/**/timeline-*.html
+nextflow_runs/**/report-*.html
+nextflow_runs/**/dag-*.html
 
 
 _*results
 
 nextflow_runs/*/test_results/
+nextflow_runs/*/mini_results/
+nextflow_runs/*/results/
