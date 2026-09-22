@@ -70,14 +70,29 @@ process KMERSEEK_BUILD {
     path "kmerseek", emit: binary
 
     script:
-    // The anaconda `ld` on PATH cannot link rocksdb, and bindgen needs to be
-    // pointed at the macOS SDK explicitly. Dropping anaconda from PATH for this
-    // one task is what makes the build work on this laptop.
+    // Three things about this laptop have to be undone before the build works.
+    //
+    // The anaconda `ld` on PATH cannot link rocksdb, so anaconda comes off PATH.
+    //
+    // An active conda environment also exports a whole compiler toolchain:
+    // CC=arm64-apple-darwin20.0.0-clang, CFLAGS pointing at anaconda's include
+    // directory, and the rest. Those survive the PATH edit, and the C build
+    // scripts (liblzma-sys, rocksdb) then fail with `failed to find tool
+    // "arm64-apple-darwin20.0.0-clang"`. Nextflow hands the launching shell's
+    // environment to the task, so a run started from a conda prompt hits this
+    // and a run started from a bare shell does not. Unsetting them makes the
+    // build behave the same either way.
+    //
+    // bindgen needs to be pointed at the macOS SDK explicitly.
     """
     echo "[BUILD] Start: \$(date)"
     start=\$(date +%s)
 
     export PATH=\$(echo "\$PATH" | tr ':' '\\n' | grep -v anaconda3 | paste -sd: -)
+    unset CC CXX CPP CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
+    unset AR AS NM RANLIB STRIP LD OBJC OBJCXX
+    unset DEBUG_CFLAGS DEBUG_CXXFLAGS DEBUG_CPPFLAGS
+    unset HOST BUILD CONDA_BUILD_SYSROOT CMAKE_PREFIX_PATH
     export SDKROOT=\$(xcrun --show-sdk-path)
     export BINDGEN_EXTRA_CLANG_ARGS="-isysroot \$SDKROOT"
     export RUSTFLAGS="-C link-arg=-undefined -C link-arg=dynamic_lookup"
