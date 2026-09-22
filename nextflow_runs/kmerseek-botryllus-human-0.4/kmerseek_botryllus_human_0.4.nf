@@ -33,6 +33,13 @@ params.outdir   = "${HOME}/data/botryllus/kmerseek-0.4"
 params.alphabet = "hp_lehninger2"
 params.ksize    = 24
 
+// FracMinHash: keep only the k-mers whose hash lands in the lowest 1/scaled of
+// the hash space. 1 keeps every k-mer. It is an index-time setting, stored in the
+// index and read back at search, so each value needs its own index. A region is
+// found from any one kept k-mer and still reported at its full length, so raising
+// scaled costs short regions first.
+params.scaled_values = "1,2,5,10"
+
 // Mismatch penalty C and X-drop for the extension. C = 1.63 is the optimum for a
 // two-letter HP alphabet read off the per-position HP agreement of related pairs
 // (2024-kmerseek-analysis notebook 230); X = 4C is the kmerseek default ratio.
@@ -49,10 +56,11 @@ params.min_region_score  = 1.3
 params.visualize_query_name = "BHF"
 params.visualize_max_hits   = 20
 
-// Naming stem shared by every published file of one arm. `lc` is "lckept" or
-// "lcremoved", spelled out so a filename says which arm it came from.
-def stem_for(lc) {
-    "kmerseek-botryllus-vs-human-gencode.canonical.v49.${params.alphabet}.k${params.ksize}.${lc}.v0.4.0"
+// One arm is a (scaled, low-complexity) pair. `lc` is "lckept" or "lcremoved",
+// spelled out so a filename says which arm it came from.
+def arm_of(scaled, lc) { "scaled${scaled}.${lc}" }
+def stem_for(arm) {
+    "kmerseek-botryllus-vs-human-gencode.canonical.v49.${params.alphabet}.k${params.ksize}.${arm}.v0.4.0"
 }
 
 process KMERSEEK_BUILD {
@@ -86,23 +94,24 @@ process KMERSEEK_BUILD {
 }
 
 process KMERSEEK_INDEX {
-    tag "index:${lc}"
+    tag "index:${arm}"
 
     publishDir params.outdir, mode: 'copy', pattern: "*.ka_survival.csv"
 
     input:
     path binary
     path input_fa
-    tuple val(lc), val(lc_flag)
+    tuple val(scaled), val(lc), val(lc_flag)
 
     output:
-    tuple val(lc), path("*.kmerseek.rocksdb"), emit: index
-    path "*.ka_survival.csv",                  emit: ka_survival
+    tuple val(arm), path("*.kmerseek.rocksdb"), emit: index
+    path "*.ka_survival.csv",                   emit: ka_survival
 
     script:
-    def stem = stem_for(lc)
+    arm = arm_of(scaled, lc)
+    def stem = stem_for(arm)
     """
-    echo "[INDEX ${lc}] Start: \$(date)"
+    echo "[INDEX ${arm}] Start: \$(date)"
     start=\$(date +%s)
 
     ./${binary} index \\
@@ -110,7 +119,7 @@ process KMERSEEK_INDEX {
         --output ${stem}.kmerseek.rocksdb \\
         --alphabet ${params.alphabet} \\
         --ksize ${params.ksize} \\
-        --scaled 1 \\
+        --scaled ${scaled} \\
         ${lc_flag} \\
         --extend-mismatch-penalty ${params.extend_mismatch_penalty} \\
         --extend-xdrop ${params.extend_xdrop} \\
@@ -119,33 +128,33 @@ process KMERSEEK_INDEX {
         --ka-survival-out ${stem}.ka_survival.csv
 
     end=\$(date +%s)
-    echo "[INDEX ${lc}] End: \$(date)"
-    echo "[INDEX ${lc}] Elapsed: \$((end - start)) seconds"
+    echo "[INDEX ${arm}] End: \$(date)"
+    echo "[INDEX ${arm}] Elapsed: \$((end - start)) seconds"
     """
 }
 
 process KMERSEEK_SEARCH {
-    tag "search:${lc}"
+    tag "search:${arm}"
 
     input:
     path binary
     path query
-    tuple val(lc), path(target_index)
+    tuple val(arm), path(target_index)
 
     output:
-    tuple val(lc), path("*.raw.csv"), emit: raw_csv
+    tuple val(arm), path("*.raw.csv"), emit: raw_csv
 
     script:
     // No date in this filename: it is a work-dir intermediate, and a date would
     // change this process's cache hash every midnight and re-run the search on
     // any -resume that crosses one.
     //
-    // --remove-low-complexity is deliberately not passed here. The search reads
-    // the setting back from the index, and passing a value that disagrees with
-    // the index only earns a warning.
-    def stem = stem_for(lc)
+    // Neither --remove-low-complexity nor --scaled is passed here. Both are
+    // index-time settings that the search reads back from the index, and a value
+    // that disagrees with the index only earns a warning.
+    def stem = stem_for(arm)
     """
-    echo "[SEARCH ${lc}] Start: \$(date)"
+    echo "[SEARCH ${arm}] Start: \$(date)"
     start=\$(date +%s)
 
     ./${binary} search \\
@@ -162,22 +171,22 @@ process KMERSEEK_SEARCH {
         --output ${stem}.raw.csv
 
     end=\$(date +%s)
-    echo "[SEARCH ${lc}] End: \$(date)"
-    echo "[SEARCH ${lc}] Elapsed: \$((end - start)) seconds"
+    echo "[SEARCH ${arm}] End: \$(date)"
+    echo "[SEARCH ${arm}] Elapsed: \$((end - start)) seconds"
     """
 }
 
 process KMERSEEK_FILTER {
-    tag "filter:${lc}"
+    tag "filter:${arm}"
 
     publishDir params.outdir, mode: 'copy'
 
     input:
-    tuple val(lc), path(raw_csv)
+    tuple val(arm), path(raw_csv)
 
     output:
-    tuple val(lc), path("*.bh_corrected.csv"), emit: bh_csv
-    tuple val(lc), path("*.filtered.csv"),     emit: filtered_csv
+    tuple val(arm), path("*.bh_corrected.csv"), emit: bh_csv
+    tuple val(arm), path("*.filtered.csv"),     emit: filtered_csv
 
     script:
     def out_stem = raw_csv.baseName.replace('.raw', '')
@@ -203,7 +212,7 @@ sig.write_csv(f"{stem}.filtered.csv")
 
 ev = df["region_evalue"].to_numpy().astype(float)
 n_finite = int(np.isfinite(ev).sum())
-print(f"Arm: ${lc}")
+print(f"Arm: ${arm}")
 print(f"Total region rows: {len(df):_}")
 print(f"BH-significant (region_tail_probability_bh < 0.05): {len(sig):_}")
 print(f"Rows with a finite E-value: {n_finite:_} of {len(df):_}")
@@ -217,18 +226,18 @@ PYEOF
 }
 
 process KMERSEEK_EXTRACT_QUERY_CSV {
-    tag "extract:${params.visualize_query_name}:${lc}"
+    tag "extract:${params.visualize_query_name}:${arm}"
 
     publishDir params.outdir, mode: 'copy'
 
     input:
-    tuple val(lc), path(raw_csv)
+    tuple val(arm), path(raw_csv)
 
     output:
-    tuple val(lc), path("*.query_subset.csv"), emit: query_csv
+    tuple val(arm), path("*.query_subset.csv"), emit: query_csv
 
     script:
-    def out_csv = "${params.visualize_query_name}.${params.alphabet}.k${params.ksize}.${lc}.v0.4.0.query_subset.csv"
+    def out_csv = "${params.visualize_query_name}.${params.alphabet}.k${params.ksize}.${arm}.v0.4.0.query_subset.csv"
     // visualize_hits.py resolves --query-name by scanning the whole CSV without
     // the streaming engine, which is impractical on the whole-proteome output.
     """
@@ -241,18 +250,18 @@ df = (
     .collect(engine="streaming")
 )
 df.write_csv("${out_csv}")
-print(f"Extracted {len(df):_} rows for query '${params.visualize_query_name}' (arm ${lc})")
+print(f"Extracted {len(df):_} rows for query '${params.visualize_query_name}' (arm ${arm})")
 PYEOF
     """
 }
 
 process KMERSEEK_VISUALIZE {
-    tag "visualize:${params.visualize_query_name}:${lc}"
+    tag "visualize:${params.visualize_query_name}:${arm}"
 
-    publishDir "${params.outdir}/figures_${lc}", mode: 'copy'
+    publishDir "${params.outdir}/figures_${arm}", mode: 'copy'
 
     input:
-    tuple val(lc), path(query_csv)
+    tuple val(arm), path(query_csv)
     path query_fasta
 
     output:
@@ -277,15 +286,18 @@ workflow {
 
     // The two arms: the label that goes in every filename, and the value passed
     // to --remove-low-complexity.
-    // `kmerseek index --remove-low-complexity` is a bare flag, so the masked arm
-    // passes the flag and the unmasked arm passes nothing at all.
-    lc_ch = Channel.of(
-        ["lckept",    ""],
-        ["lcremoved", "--remove-low-complexity"],
+    // Every (scaled, low-complexity) pair is one arm. `kmerseek index
+    // --remove-low-complexity` is a bare flag, so the masked arm passes the flag
+    // and the unmasked arm passes nothing at all.
+    def scaled_list = params.scaled_values.toString().split(',').collect { it.trim() as Integer }
+    arms_ch = Channel.fromList(
+        scaled_list.collectMany { scaled ->
+            [[scaled, "lckept", ""], [scaled, "lcremoved", "--remove-low-complexity"]]
+        }
     )
 
     KMERSEEK_BUILD()
-    KMERSEEK_INDEX(KMERSEEK_BUILD.out.binary.first(), input_ch.first(), lc_ch)
+    KMERSEEK_INDEX(KMERSEEK_BUILD.out.binary.first(), input_ch.first(), arms_ch)
     KMERSEEK_SEARCH(KMERSEEK_BUILD.out.binary.first(), query_ch.first(), KMERSEEK_INDEX.out.index)
     KMERSEEK_FILTER(KMERSEEK_SEARCH.out.raw_csv)
     KMERSEEK_EXTRACT_QUERY_CSV(KMERSEEK_SEARCH.out.raw_csv)

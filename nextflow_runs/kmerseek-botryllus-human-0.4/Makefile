@@ -1,7 +1,8 @@
 # Botryllus schlosseri proteins (query) vs human GENCODE v49 canonical
 # translations (target), searched with kmerseek 0.4.0.
 #
-#   make run       # hp_lehninger2, k=24, ungapped extension, E-values
+#   make run       # hp_lehninger2 k=24, ungapped extension, E-values,
+#                  # scaled 1/2/5/10 x low-complexity kept/removed = 8 arms
 #   make resume    # same, with -resume
 #
 # Run from this directory.
@@ -19,6 +20,10 @@ KMERSEEK_MAIN_SRC ?= $(HOME)/code/kmerseek/.claude/worktrees/release-0.4.0
 
 ALPHABET ?= hp_lehninger2
 KSIZE    ?= 24
+
+# Every (SCALED_VALUES x low-complexity) pair is one arm: 4 x 2 = 8 indexes and
+# 8 searches. Both settings are index-time, so each arm builds its own index.
+SCALED_VALUES ?= 1,2,5,10
 
 # Mismatch penalty C and X-drop for the ungapped extension, and how many database
 # sequences the Karlin-Altschul fit behind region_evalue is read off.
@@ -45,6 +50,7 @@ NF_ARGS = -c nextflow.config \
 	    --outdir $(OUTDIR) \
 	    --alphabet $(ALPHABET) \
 	    --ksize $(KSIZE) \
+	    --scaled_values $(SCALED_VALUES) \
 	    --kmerseek_src $(KMERSEEK_SRC) \
 	    --kmerseek_main_src $(KMERSEEK_MAIN_SRC) \
 	    --extend_mismatch_penalty $(EXTEND_MISMATCH_PENALTY) \
@@ -61,11 +67,12 @@ NF_ARGS = -c nextflow.config \
 help:
 	@echo "kmerseek 0.4.0: Botryllus vs human GENCODE"
 	@echo ""
-	@echo "  make run      Build, index (with the Karlin-Altschul fit), search, filter, plot"
+	@echo "  make run      Build, index (with the Karlin-Altschul fit), search, filter, plot,"
+	@echo "                for all 8 arms"
 	@echo "  make resume   Same, with -resume"
 	@echo "  make clean    Remove the work dir and logs (published outputs are kept)"
 	@echo ""
-	@echo "  ALPHABET=$(ALPHABET)  KSIZE=$(KSIZE)"
+	@echo "  ALPHABET=$(ALPHABET)  KSIZE=$(KSIZE)  SCALED_VALUES=$(SCALED_VALUES)"
 	@echo "  EXTEND_MISMATCH_PENALTY=$(EXTEND_MISMATCH_PENALTY)  EXTEND_XDROP=$(EXTEND_XDROP)"
 	@echo "  QUERY=$(QUERY)"
 	@echo "  INPUT=$(INPUT)"
