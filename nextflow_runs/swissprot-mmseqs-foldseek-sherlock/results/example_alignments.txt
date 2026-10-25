@@ -1,0 +1,55 @@
+MMseqs2: g62973.t1 115-211 vs DRA_MACMU (rhesus MHC class II alpha) 107-208, 46 bits, 33 of 104 aligned positions identical
+  g62973.t1   115 IETIPVNIVTLPMAPFRIGHRVLLNCLYQTFPDGTLSVVWKKNGTPISQTRPSERVTIRN
+                  |   |     |   |   |    | |    |      | | ||| |   |  || |    
+  Q30631      107 ITNVPPEVTVLTNSPVELGEPNVLICFIDKFSPPVVKVTWLKNGKPVT-TGVSETVFLPR
+
+  g62973.t1   175 ERQLVIK----EFQDSDVGTYTCSVEY---DLPTALKQGEASIP
+                  |  |  |     |  |    | | ||    | |  ||  |   |
+  Q30631      166 EDHLFRKFHYLPFLPSTEDIYDCKVEHWCLDAP-LLKHWEFDAP
+
+Foldseek (ProstT5 3Di): mFuHC 1-247 vs HB2D_RAT (rat MHC class II beta, RT1-Db1) 5-231, 300 bits, 33 of 290 aligned positions identical
+  mFuHC         1 MKKAFILQVILGVLRLSD------------SVDLKYDDVSYATVHQ-SAFLRCGMMPVQP
+                          |||    ||                 |     |          |        
+  P18211        5 ARDSCVAAVILLLTVLSPPVALVRDPTPRFLEQVKGECHFYNGTQRVRFLARYIYNR---
+
+  mFuHC        48 IKELWWFKIGASEERV--YYYDPTSVDAALMKRARRSNR-----DNTSLEIYPTQ-----
+                               |       |            |                |  |     
+  P18211       62 -------------EEYTRFDSD--------VGEFRAVTELGRPSAEY----YNKQKEYME
+
+  mFuHC        96 ---LSDEGEYKCRIVVWDN----------TGNSTEPSVPISKEARMMLKVNVPPEKVEIT
+                                   |                                 | | ||   
+  P18211       97 QLRATV-----------DTACKHDYEISESFLVPR---------------TVEP-KVTVY
+
+  mFuHC       143 HLTSGR---NLSLRCKSEGAKPP-ADILWTKTSPDGVETEIPDLAKTREIEPAG-ELYDT
+                              | |      |      |      | |     |  |      |      
+  P18211      130 PSKTQPLEHHNLLVCSVSDFYPGSVEVRWFR---NGEEE-KDGLVST-GLIRNGDWTFQL
+
+  mFuHC       198 AEQIFYQLEENEMIAKISCVVRHHNTNTTIYKNITFVSPAIQNALKVTIQ
+                                    | | |              |   ||       
+  P18211      185 LVMLETVPQ---GGEVYTCQVEHPSLPSPVRVEWKAQSTSAQNKKMSGVG
+
+Foldseek (ProstT5 3Di): mFuHC 46-247 vs HFE_CERSI (white rhinoceros HFE) 23-310, 285 bits, 39 of 315 aligned positions identical
+  mFuHC        46 QPIK--ELWWFKIGASE----------------ERVYYYDP-----TSVDAALMKRARRS
+                   |     |     ||||                |    |        |        |   
+  Q9GKZ0       23 RPPRSHSLRYLFMGASERDHGLPLFEALGYVDDELFVAYNHESRRAESRAQWVLGEAHSQ
+
+  mFuHC        83 ---------------------------NRDNTSLEIYPTQLSDEGEYKCRIVVW--DNTG
+                                             |    |                 |         
+  Q9GKZ0       83 LWLQLSQSLKGWDHMFIVDFWTIMDNHNHSKES------------HTLQVILGCEVQEDN
+
+  mFuHC       114 NSTEPSVPISKEARMML-------------------------------------------
+                            |                                                 
+  Q9GKZ0      131 S----TRGFWKYGYDGQDHLEFCPETLDWRAAESRALTTKLEWEVNKIRAKQNRAYLERD
+
+  mFuHC       131 ----------------KVNVPPEKVEITHLTSGRNLSLRCKSEGAKPP-ADILWTKTSPD
+                                     |||  |  ||        |||      |      | |   |
+  Q9GKZ0      187 CPEQLQWLLELGRGVLDQQVPP-LVKVTHHVASAVTTLRCQALNFYPQNITMRWLK---D
+
+  mFuHC       174 GVETEIPDLAKTREIEPAG-ELYDTAEQIFYQLEENEMIAKISCVVRHHNTNTTIYKNIT
+                         |        | |   |   |       |        | | |            
+  Q9GKZ0      243 RKPMDVKDAESK-DVLPSGDGTYQSWEALAVPPGEEQR---YTCQVEHPGLDQPLTA---
+
+  mFuHC       233 FVSPAIQNALKVTIQ
+                     |   | |     
+  Q9GKZ0      296 TWEPSLSNTLVTGVI
+

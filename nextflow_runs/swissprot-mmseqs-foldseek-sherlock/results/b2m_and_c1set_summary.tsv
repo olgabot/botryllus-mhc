@@ -1,0 +1,7 @@
+tool	target_class	n_botryllus_proteins	n_hits	best_evalue	best_bits
+Foldseek (ProstT5 3Di)	B2M	15	283	0.00001233	282.0
+Foldseek (ProstT5 3Di)	MHC class I or I-like	55	907	0.00002738	306.0
+Foldseek (ProstT5 3Di)	MHC class II	69	1417	9.646596987676862e-6	309.0
+Foldseek (ProstT5 3Di)	other C1-set	676	18981	5.574e-19	967.0
+MMseqs2	MHC class II	1	1	0.0007092	46.0
+MMseqs2	other C1-set	8	24	4.883e-10	67.0

@@ -1,0 +1,3 @@
+tool	pairs_full_search	pairs_exhaustive	pairs_in_both	pairs_full_only	evalue_scale_factor_median	evalue_scale_factor_min	evalue_scale_factor_max	pairs_exhaustive_only_e_below_1e-3	proteins_exhaustive_only_e_below_1e-3
+MMseqs2	18	488	18	0	2025.723668066102	2024.493243243243	2026.9821502698212	7	4
+Foldseek (ProstT5 3Di)	7135	46845	7135	0	10.823064049901111	10.814299900695135	10.831842576028622	14453	647
