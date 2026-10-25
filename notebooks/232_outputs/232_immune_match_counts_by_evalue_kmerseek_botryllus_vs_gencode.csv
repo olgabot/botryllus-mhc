@@ -1,0 +1,29 @@
+arm,gene_set,max_evalue,n_matches,n_botryllus_proteins,n_human_genes
+lcremoved,all immune genes,10.0,30509,19733,1648
+lcremoved,HLA genes,10.0,235,170,19
+lcremoved,all immune genes,1.0,4232,2466,848
+lcremoved,HLA genes,1.0,11,10,4
+lcremoved,all immune genes,0.1,2076,1087,442
+lcremoved,HLA genes,0.1,0,0,0
+lcremoved,all immune genes,0.01,1566,841,376
+lcremoved,HLA genes,0.01,0,0,0
+lcremoved,all immune genes,0.001,1314,718,341
+lcremoved,HLA genes,0.001,0,0,0
+lcremoved,all immune genes,0.0001,1109,596,315
+lcremoved,HLA genes,0.0001,0,0,0
+lcremoved,all immune genes,0.00001,956,524,288
+lcremoved,HLA genes,0.00001,0,0,0
+lckept,all immune genes,10.0,11267,5924,1349
+lckept,HLA genes,10.0,54,42,17
+lckept,all immune genes,1.0,2106,1069,437
+lckept,HLA genes,1.0,0,0,0
+lckept,all immune genes,0.1,1419,777,354
+lckept,HLA genes,0.1,0,0,0
+lckept,all immune genes,0.01,1119,605,318
+lckept,HLA genes,0.01,0,0,0
+lckept,all immune genes,0.001,900,506,280
+lckept,HLA genes,0.001,0,0,0
+lckept,all immune genes,0.0001,576,411,231
+lckept,HLA genes,0.0001,0,0,0
+lckept,all immune genes,0.00001,479,347,203
+lckept,HLA genes,0.00001,0,0,0
