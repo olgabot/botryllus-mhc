@@ -1,6 +1,5 @@
 #!/bin/bash
 #SBATCH --job-name=233-build-kmerseek
-#SBATCH --account=ayeletv
 #SBATCH --partition=hns
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=16G

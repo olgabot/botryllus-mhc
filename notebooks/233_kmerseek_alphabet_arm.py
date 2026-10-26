@@ -15,11 +15,16 @@ Steps, each skipped when its output already exists, so a rerun picks up where it
 4. Copy the matches with E <= 10 or E = inf to a smaller gzipped CSV, the only file the
    notebook reads. E = inf means kmerseek found shared k-mers but did not extend them.
 
+The index and the full search CSV go to WORK_DIR, node-local disk on Sherlock (RocksDB
+opens and closes many files, which overloads $SCRATCH's metadata servers), and are
+deleted when the arm is done. Everything kept goes to OUT_DIR.
+
 Standard library only (Sherlock's python module has no polars).
 
 Usage:
     233_kmerseek_alphabet_arm.py <row number in 233_arms.tsv, 0 = first arm>
-Environment: KMERSEEK (binary), HUMAN (target FASTA), QUERY (Botryllus FASTA), OUT_DIR.
+Environment: KMERSEEK (binary), HUMAN (target FASTA), QUERY (Botryllus FASTA), OUT_DIR,
+WORK_DIR (scratch space for the index and the full search CSV).
 """
 
 from __future__ import annotations
@@ -29,6 +34,7 @@ import gzip
 import json
 import math
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -39,6 +45,7 @@ KMERSEEK = os.environ["KMERSEEK"]
 HUMAN = os.environ["HUMAN"]
 QUERY = os.environ["QUERY"]
 OUT_DIR = Path(os.environ["OUT_DIR"])
+WORK_DIR = Path(os.environ["WORK_DIR"])
 
 KA_QUERIES, KA_SEED, RETRY_KA_QUERIES = 200, 1, 1_000
 MAX_QUERY_PVALUE, MIN_REGION_SCORE = 0.05, 1.3
@@ -71,13 +78,17 @@ def main() -> None:
         arm = list(csv.DictReader(fh, delimiter="\t"))[row_number]
     alphabet, k, penalty, xdrop = arm["alphabet"], arm["ksize"], arm["penalty"], arm["xdrop"]
     tag = f"{alphabet}.k{k}.scaled1.lcremoved"
-    for sub in ("idx", "ka_survival", "search", "evalue_le_10", "logs"):
+    for sub in ("ka_survival", "evalue_le_10", "logs"):
         (OUT_DIR / sub).mkdir(parents=True, exist_ok=True)
-    idx = OUT_DIR / "idx" / f"human_gencode_v49_canonical.{tag}.rocksdb"
+    WORK_DIR.mkdir(parents=True, exist_ok=True)
+    kept = OUT_DIR / "evalue_le_10" / f"{tag}.evalue_le_10_or_inf.csv.gz"
+    if kept.exists():
+        print(f"{tag}: already done, {kept} exists")
+        return
+    idx = WORK_DIR / f"human_gencode_v49_canonical.{tag}.rocksdb"
     survival = OUT_DIR / "ka_survival" / f"{tag}.csv"
     retry_survival = OUT_DIR / "ka_survival" / f"{tag}.retry.csv"
-    raw = OUT_DIR / "search" / f"{tag}.csv"
-    kept = OUT_DIR / "evalue_le_10" / f"{tag}.evalue_le_10_or_inf.csv.gz"
+    raw = WORK_DIR / f"{tag}.search.csv"
     logs = OUT_DIR / "logs"
     summary = {**arm, "tag": tag, "kmerseek": KMERSEEK}
     extension = ["--extend-mismatch-penalty", penalty, "--extend-xdrop", xdrop]
@@ -134,8 +145,11 @@ def main() -> None:
                 n_kept += 1
                 writer.writerow(row)
     tmp.rename(kept)
+    raw_bytes = raw.stat().st_size
+    raw.unlink()
+    shutil.rmtree(idx)
     summary.update(n_matches=n_all, n_evalue_le_10_or_inf=n_kept, n_evalue_inf=n_inf,
-                   raw_csv_bytes=raw.stat().st_size)
+                   raw_csv_bytes=raw_bytes)
     (OUT_DIR / "evalue_le_10" / f"{tag}.summary.json").write_text(json.dumps(summary, indent=1))
     print(json.dumps(summary))
 
