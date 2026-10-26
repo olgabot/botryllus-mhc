@@ -169,7 +169,11 @@ PFAM_URL        := https://ftp.ebi.ac.uk/pub/databases/Pfam/releases/Pfam$(PFAM_
 FUNFAM_URL      := https://download.cathdb.info/cath/releases/all-releases/v4_3_0/sequence-data/funfam-hmm3-v4_3_0.lib.gz
 NMPFAMS_URL     := https://pavlopoulos-lab.org/envofams/databases/hmmer/nmpfamsdb.hmm.gz
 METAGROOT_URL   := https://pavlopoulos-lab.org/envofams/databases/hmmer/metagroot.hmm.gz
-IPS_VERSION     ?= 5.72-103.0
+# Must match the module's container (biocontainers interproscan:5.59_91.0). Its
+# interproscan.properties names each member database by version (pfam/35.0, panther/17.0,
+# tigrfam/15.0, ...), so the pipeline's default 5.72-103.0 data fails: on the Sherlock mini
+# run every application but PIRSF and SFLD pointed at a folder that did not exist.
+IPS_VERSION     ?= 5.59-91.0
 IPS_URL         := https://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/$(IPS_VERSION)/interproscan-$(IPS_VERSION)-64-bit.tar.gz
 SH_IPS_DIR      := $(SH_DB_DIR)/interproscan-$(IPS_VERSION)
 
@@ -187,6 +191,9 @@ IMAGES := \
 
 # Speed floor + resume: a bare curl on a multi-GB file can stall for hours without failing
 CURL := curl -L --fail --continue-at - --speed-limit 10240 --speed-time 60 --retry 10
+# $(1)=file in SH_DB_DIR  $(2)=url. Downloads to .part and renames when complete, so a
+# file that exists is whole and a rerun of sherlock-stage skips it.
+GET = cd $(SH_DB_DIR) && { [ -s $(1) ] || { $(CURL) -o $(1).part $(2) && mv -f $(1).part $(1); }; }
 
 # Head job: holds the Nextflow JVM for the whole run and only submits and polls jobs
 HEAD_TIME ?= 2-00:00:00
@@ -197,7 +204,7 @@ DB_ARGS = --pfam_db $(SH_DB_DIR)/Pfam-A.$(PFAM_VERSION).hmm.gz \
           --funfam_db $(SH_DB_DIR)/funfam-hmm3-v4_3_0.lib.gz \
           --nmpfams_db $(SH_DB_DIR)/nmpfamsdb.hmm.gz \
           --metagroot_db $(SH_DB_DIR)/metagroot.hmm.gz \
-          --interproscan_db $(SH_IPS_DIR)
+          --interproscan_db $(SH_IPS_DIR)/data
 
 .PHONY: sherlock-sync sherlock-upload-fasta sherlock-check-login sherlock-stage sherlock-untar-ips sherlock-mini sherlock-run
 
@@ -223,13 +230,13 @@ sherlock-stage: sherlock-check-login
 	$(SH_LOAD) $(SH_NEXTFLOW) -version | grep -q $(NXF_VERSION)
 	$(SH_LOAD) $(SH_NEXTFLOW) plugin install $(NF_SCHEMA)
 	$(SH_LOAD) $(SH_NEXTFLOW) pull nf-core/proteinannotator -r $(PIPELINE_COMMIT)
-	cd $(SH_DB_DIR) && $(CURL) -o Pfam-A.$(PFAM_VERSION).hmm.gz $(PFAM_URL)
-	cd $(SH_DB_DIR) && $(CURL) -o funfam-hmm3-v4_3_0.lib.gz $(FUNFAM_URL)
-	cd $(SH_DB_DIR) && $(CURL) -o nmpfamsdb.hmm.gz $(NMPFAMS_URL)
-	cd $(SH_DB_DIR) && $(CURL) -o metagroot.hmm.gz $(METAGROOT_URL)
-	cd $(SH_DB_DIR) && $(CURL) -o interproscan-$(IPS_VERSION)-64-bit.tar.gz $(IPS_URL) \
-	  && $(CURL) -o interproscan-$(IPS_VERSION)-64-bit.tar.gz.md5 $(IPS_URL).md5 \
-	  && md5sum -c interproscan-$(IPS_VERSION)-64-bit.tar.gz.md5
+	$(call GET,Pfam-A.$(PFAM_VERSION).hmm.gz,$(PFAM_URL))
+	$(call GET,funfam-hmm3-v4_3_0.lib.gz,$(FUNFAM_URL))
+	$(call GET,nmpfamsdb.hmm.gz,$(NMPFAMS_URL))
+	$(call GET,metagroot.hmm.gz,$(METAGROOT_URL))
+	$(call GET,interproscan-$(IPS_VERSION)-64-bit.tar.gz,$(IPS_URL))
+	$(call GET,interproscan-$(IPS_VERSION)-64-bit.tar.gz.md5,$(IPS_URL).md5)
+	cd $(SH_DB_DIR) && md5sum -c interproscan-$(IPS_VERSION)-64-bit.tar.gz.md5
 	for url in $(IMAGES); do \
 	  name=$$(echo "$$url" | sed -E 's#^https?://##; s#[:/]#-#g').img; \
 	  if [ ! -s $(SH_IMG_DIR)/$$name ]; then \
@@ -249,6 +256,9 @@ sherlock-untar-ips:
 	    [ -d $(SH_IPS_DIR)/data ] || tar -pxzf interproscan-$(IPS_VERSION)-64-bit.tar.gz; \
 	    cd $(SH_IPS_DIR) && python3 setup.py -f interproscan.properties'
 	ls $(SH_IPS_DIR)/data
+
+# The module stages --interproscan_db as `data` and reads data/<db>/<version>/..., so it
+# takes the tarball's data/ subfolder, not the tarball's top folder.
 
 # First 10 proteins, stop codons stripped; the same command as the full run
 $(SH_INPUT_DIR)/botryllus_clean.fa: $(SH_INPUT_DIR)/Bs_proteins.fa
