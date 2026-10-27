@@ -14,7 +14,9 @@
 nextflow.enable.dsl = 2
 
 // Unpack InterProScan 5.59-91.0's data and press its HMMs, once. storeDir keeps it next to
-// the tarball, where ../nf-core-proteinannotator expects it. The 5.72 unpack took 1 h 13 min.
+// the tarball, where ../nf-core-proteinannotator expects it, and skips this task when that
+// folder exists, so `make sherlock-untar-ips` there and this task are interchangeable.
+// The 5.72 unpack took 1 h 13 min.
 process IPS_DATA {
     tag "${params.ips_version}"
     storeDir params.ips_store_dir
@@ -36,7 +38,8 @@ process IPS_DATA {
     md5sum -c ${md5}
     tar -pxzf ${tarball}
     cd interproscan-${params.ips_version}
-    python3 setup.py -f interproscan.properties || python3 setup.py interproscan.properties
+    # 5.59 indexes with initial_setup.py, later versions with setup.py
+    if [ -f setup.py ]; then python3 setup.py -f interproscan.properties; else python3 initial_setup.py; fi
     """
 
     stub:
