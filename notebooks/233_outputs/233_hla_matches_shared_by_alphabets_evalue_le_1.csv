@@ -289,8 +289,8 @@ g431.t1 frame:1,HLA-DMA,1,0.14509155274100075,funcgroups8,transmembrane helix
 g65274.t1 frame:1,HLA-B,1,0.14613853865983822,funcgroups8,transmembrane helix
 g35151.t1 frame:1,HLA-DPA1,1,0.14681046707221468,funcgroups8,transmembrane helix
 g19021.t1 frame:1,HLA-A,1,0.14718835970780003,funcgroups8,transmembrane helix
-g36755.t1 frame:1,HLA-G,1,0.1485097056290741,funcgroups8,transmembrane helix
 g30504.t1 frame:1,HLA-G,1,0.1485097056290741,funcgroups8,transmembrane helix
+g36755.t1 frame:1,HLA-G,1,0.1485097056290741,funcgroups8,transmembrane helix
 g20583.t1 frame:1,HLA-A,1,0.14865177137781777,funcgroups8,transmembrane helix
 g55616.t1 frame:1,HLA-G,1,0.14949302828361108,funcgroups8,transmembrane helix
 g52637.t1 frame:1,HLA-G,1,0.15042157980546525,funcgroups8,transmembrane helix
@@ -384,8 +384,8 @@ g30680.t1 frame:1,HLA-F,1,0.2427813041567027,funcgroups8,transmembrane helix
 g13388.t1 frame:1,HLA-A,1,0.24990033318535104,funcgroups8,transmembrane helix
 g16727.t1 frame:1,HLA-DPA1,1,0.24990939334960952,funcgroups8,transmembrane helix
 g69697.t1 frame:1,HLA-DPA1,1,0.25109183925424733,funcgroups8,transmembrane helix
-g45941.t1 frame:1,HLA-DPA1,1,0.25140781787518507,funcgroups8,transmembrane helix
 g26696.t1 frame:1,HLA-DPA1,1,0.25140781787518507,funcgroups8,transmembrane helix
+g45941.t1 frame:1,HLA-DPA1,1,0.25140781787518507,funcgroups8,transmembrane helix
 g28956.t1 frame:1,HLA-E,1,0.2519057709555481,funcgroups8,transmembrane helix
 g71213.t1 frame:1,HLA-DPA1,1,0.25255279196133257,funcgroups8,transmembrane helix
 g29031.t1 frame:1,HLA-A,1,0.25567300553516703,funcgroups8,transmembrane helix
@@ -583,8 +583,8 @@ g33214.t1 frame:1,HLA-A,1,0.5504633843295502,funcgroups8,transmembrane helix
 g16524.t1 frame:1,HLA-E,1,0.5505753524850641,funcgroups8,transmembrane helix
 g66059.t1 frame:1,HLA-C,1,0.5513606432460346,hp_lehninger2,transmembrane helix
 g32421.t1 frame:2,HLA-E,1,0.5525244643980313,funcgroups8,transmembrane helix
-g58895.t1 frame:1,HLA-A,1,0.553928046559189,funcgroups8,transmembrane helix
 g20725.t1 frame:1,HLA-A,1,0.553928046559189,funcgroups8,transmembrane helix
+g58895.t1 frame:1,HLA-A,1,0.553928046559189,funcgroups8,transmembrane helix
 g48118.t1 frame:1,HLA-B,1,0.5558615764866282,funcgroups8,transmembrane helix
 g52030.t2 frame:1,HLA-F,1,0.556208089717416,funcgroups8,transmembrane helix
 g66247.t1 frame:2,HLA-E,1,0.5638429052870743,funcgroups8,transmembrane helix
@@ -615,8 +615,8 @@ g61378.t1 frame:1,HLA-G,1,0.5906142730856553,polarity4,transmembrane helix
 g6353.t1 frame:1,HLA-DOA,1,0.5933651074486681,funcgroups8,transmembrane helix
 g63529.t1 frame:1,HLA-E,1,0.5956824081539793,funcgroups8,transmembrane helix
 g59746.t1 frame:3,HLA-F,1,0.6001823505659477,funcgroups8,transmembrane helix
-g45941.t1 frame:1,HLA-G,1,0.6021016654780702,funcgroups8,transmembrane helix
 g26696.t1 frame:1,HLA-G,1,0.6021016654780702,funcgroups8,transmembrane helix
+g45941.t1 frame:1,HLA-G,1,0.6021016654780702,funcgroups8,transmembrane helix
 g30576.t1 frame:1,HLA-E,1,0.6029516932554534,funcgroups8,transmembrane helix
 g37047.t1 frame:1,HLA-DPA1,1,0.6040936971323827,funcgroups8,transmembrane helix
 g37047.t1 frame:1,HLA-C,1,0.6044659631074275,funcgroups8,transmembrane helix
@@ -649,8 +649,8 @@ g59409.t1 frame:3,HLA-C,1,0.677013385798295,polarity4,transmembrane helix
 g9518.t2 frame:1,HLA-G,1,0.6793020744264324,funcgroups8,transmembrane helix
 g30570.t1 frame:3,HLA-C,1,0.6809072507775991,hp_lehninger2,transmembrane helix
 g56212.t1 frame:1,HLA-DPA1,1,0.6817564138452602,funcgroups8,transmembrane helix
-g45941.t1 frame:1,HLA-C,1,0.6830220267604064,funcgroups8,transmembrane helix
 g26696.t1 frame:1,HLA-C,1,0.6830220267604064,funcgroups8,transmembrane helix
+g45941.t1 frame:1,HLA-C,1,0.6830220267604064,funcgroups8,transmembrane helix
 g65995.t1 frame:1,HLA-E,1,0.6837824205369829,funcgroups8,transmembrane helix
 g71213.t1 frame:1,HLA-B,1,0.6887904832286994,funcgroups8,transmembrane helix
 g47903.t1 frame:1,HLA-A,1,0.6892525885107099,funcgroups8,transmembrane helix

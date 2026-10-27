@@ -373,6 +373,35 @@ for r in best_rows.sort("region_evalue").iter_rows(named=True):
 
 md(
     """
+**Every HLA groove or Ig-like match at E ≤ 1**, in residues (Botryllus first, human second).
+"Same residue" counts positions where the two sequences carry the same amino acid; kmerseek
+matches whole regions without gaps, so position i of one lines up with position i of the other.
+"""
+)
+
+code(
+    r'''
+GROOVE_OR_IG = ["peptide-binding groove", "Ig-like domain"]
+groove_ig_le_1 = (hla.filter((pl.col("region_evalue") <= 1) & pl.col("hla_part_matched").is_in(GROOVE_OR_IG))
+                  .sort("region_evalue", "alphabet", "query_name")
+                  .with_columns(pl.struct("region_subseq", "target_subseq").map_elements(
+                      lambda r: sum(a == b for a, b in zip(r["region_subseq"], r["target_subseq"])),
+                      return_dtype=pl.Int64).alias("n_same_residue")))
+groove_ig_le_1.write_csv(OUT_DIR / "233_hla_groove_or_ig_matches_evalue_le_1_kmerseek_botryllus_vs_gencode_19_alphabets.csv")
+print(hla.filter(pl.col("region_evalue") <= 1).group_by("hla_part_matched")
+      .agg(pl.len().alias("n_matches"), pl.col("query_name").n_unique().alias("n_botryllus_proteins"),
+           pl.col("region_evalue").min().alias("best_evalue")).sort("n_matches", descending=True))
+for r in groove_ig_le_1.iter_rows(named=True):
+    print(f"\n{r['alphabet']:<25} {r['query_name']:<20} vs {r['human_gene']:<9} E = {r['region_evalue']:.2f}  "
+          f"human residues {r['target_start'] + 1}-{r['target_end']} ({r['hla_part_matched']}); "
+          f"same residue at {r['n_same_residue']} of {len(r['region_subseq'])} positions")
+    print(f"  Botryllus {r['region_subseq'][:100]}")
+    print(f"  human     {r['target_subseq'][:100]}")
+'''
+)
+
+md(
+    """
 **Matches found by several alphabets.** For each Botryllus protein and HLA gene, the number
 of alphabets (of 19) with a match at E ≤ 1, and the best E-value among them:
 """
@@ -385,7 +414,7 @@ shared = (hla.filter(pl.col("region_evalue") <= 1)
           .agg(pl.col("alphabet").n_unique().alias("n_alphabets"), pl.col("region_evalue").min().alias("best_evalue"),
                pl.col("alphabet").unique().sort().str.join(", ").alias("alphabets"),
                pl.col("hla_part_matched").mode().first().alias("most_common_part"))
-          .sort("n_alphabets", "best_evalue", descending=[True, False]))
+          .sort("n_alphabets", "best_evalue", "query_name", "human_gene", descending=[True, False, False, False]))
 shared.write_csv(OUT_DIR / "233_hla_matches_shared_by_alphabets_evalue_le_1.csv")
 print(shared.head(20))
 '''
