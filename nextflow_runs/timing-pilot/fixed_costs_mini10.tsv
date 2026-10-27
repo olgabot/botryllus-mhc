@@ -1,0 +1,6 @@
+step	fixed_s	source
+HMMSEARCH_PFAM	41	realtime, 10-protein Sherlock run, $SCRATCH/botryllus-mhc-proteinannotator/botryllus_mini10/results/pipeline_info/execution_trace_2026-10-25_17-44-06.txt
+HMMSEARCH_NMPFAMS	114	same trace
+HMMSEARCH_METAGROOT	169	same trace
+HMMSEARCH_FUNFAM	582	same trace
+S4PRED_RUNMODEL	106	same trace

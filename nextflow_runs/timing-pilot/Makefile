@@ -16,6 +16,7 @@
 # the InterProScan 5.59-91.0 tarball.
 
 SHELL := /bin/bash
+PYTHON ?= /Users/olga/anaconda3/envs/2025-kmerseek-analysis/bin/python3
 
 SHERLOCK_HOST  ?= sherlock
 REPO_URL       ?= https://github.com/olgabot/botryllus-mhc
@@ -140,4 +141,4 @@ collect:
 	  --include='*_epoch.txt' --include='jobs.tsv' --include='pilot500_full.tsv' \
 	  --include='predictions*' --exclude='*' \
 	  $(SHERLOCK_HOST):'$$SCRATCH/botryllus-annotation-timing-pilot/' results/raw/
-	python3 -I bin/scale_timings.py results/raw botryllus_pilot500_lengths.tsv $(PROTEOME) results
+	$(PYTHON) -I bin/scale_timings.py results/raw botryllus_pilot500_lengths.tsv $(PROTEOME) results
