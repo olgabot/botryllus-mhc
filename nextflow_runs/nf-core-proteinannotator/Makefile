@@ -253,9 +253,17 @@ sherlock-untar-ips:
 	sbatch --wait --job-name=ips-untar --partition=hns,normal --account=ayeletv \
 	  --cpus-per-task=2 --mem=8G --time=03:00:00 --output=$(SH_BASE)/logs/ips-untar-%j.out \
 	  --wrap='set -eo pipefail; cd $(SH_DB_DIR); \
-	    [ -d $(SH_IPS_DIR)/data ] || tar -pxzf interproscan-$(IPS_VERSION)-64-bit.tar.gz; \
-	    cd $(SH_IPS_DIR) && python3 setup.py -f interproscan.properties'
+	    if [ ! -e $(SH_IPS_DIR)/.unpacked ]; then \
+	      rm -rf $(SH_IPS_DIR) $(SH_IPS_DIR).tmp; mkdir $(SH_IPS_DIR).tmp; \
+	      tar -pxzf interproscan-$(IPS_VERSION)-64-bit.tar.gz -C $(SH_IPS_DIR).tmp; \
+	      mv $(SH_IPS_DIR).tmp/interproscan-$(IPS_VERSION) $(SH_IPS_DIR); rmdir $(SH_IPS_DIR).tmp; \
+	      touch $(SH_IPS_DIR)/.unpacked; \
+	    fi; \
+	    cd $(SH_IPS_DIR); \
+	    if [ -f setup.py ]; then python3 setup.py -f interproscan.properties; \
+	    else python3 initial_setup.py; fi'
 	ls $(SH_IPS_DIR)/data
+	ls $(SH_IPS_DIR)/data/pfam/*/
 
 # The module stages --interproscan_db as `data` and reads data/<db>/<version>/..., so it
 # takes the tarball's data/ subfolder, not the tarball's top folder.
