@@ -196,7 +196,9 @@ CURL := curl -L --fail --continue-at - --speed-limit 10240 --speed-time 60 --ret
 GET = cd $(SH_DB_DIR) && { [ -s $(1) ] || { $(CURL) -o $(1).part $(2) && mv -f $(1).part $(1); }; }
 
 # Head job: holds the Nextflow JVM for the whole run and only submits and polls jobs
-HEAD_TIME ?= 2-00:00:00
+# Must outlive the longest task (FunFam, up to 47 h) plus queue time; hns allows 7 days
+HEAD_TIME ?= 4-00:00:00
+HEAD_PARTITION ?= hns
 HEAD_MEM  ?= 8G
 SH_PROFILE_ARGS = -profile singularity -c $(CURDIR)/sherlock.config
 
@@ -278,7 +280,7 @@ $(SH_INPUT_DIR)/botryllus_mini10.fa: $(SH_INPUT_DIR)/Bs_proteins.fa
 define SH_LAUNCH
 	mkdir -p $(SH_BASE)/$(1) $(SH_BASE)/logs
 	printf 'id,fasta\n$(1),$(2)\n' > $(SH_BASE)/$(1)/samplesheet.csv
-	sbatch --job-name=pa-$(1) --partition=hns,normal --account=ayeletv \
+	sbatch --job-name=pa-$(1) --partition=$(HEAD_PARTITION) --account=ayeletv \
 	  --cpus-per-task=2 --mem=$(HEAD_MEM) --time=$(HEAD_TIME) \
 	  --output=$(SH_BASE)/logs/head-$(1)-%j.out \
 	  --wrap='$(SH_LOAD) set -euo pipefail; cd $(SH_BASE)/$(1); \
