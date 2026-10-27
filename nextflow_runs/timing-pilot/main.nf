@@ -18,6 +18,8 @@ nextflow.enable.dsl = 2
 process IPS_DATA {
     tag "${params.ips_version}"
     storeDir params.ips_store_dir
+    // The unpacked data is tens of GB; storeDir already keeps it, so no copy in results/
+    publishDir "${params.pilot_dir}/results/ips_data", enabled: false
     cpus 2
     memory '8 GB'
     time '4h'
