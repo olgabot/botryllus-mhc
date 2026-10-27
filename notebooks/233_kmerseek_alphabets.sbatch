@@ -36,11 +36,16 @@
 # deleted after each alphabet. Copy back only the small files:
 #   rsync -av sherlock-dtn:/scratch/users/olgabot/233-kmerseek-alphabets/{evalue_le_10,ka_survival,logs} \
 #       /Users/olga/data/botryllus/kmerseek-0.4-alphabets/
+# The FUN proteome run (notebook 234) uses the same script with other inputs and
+# memory, and gives each task a balanced set of alphabets measured from this run:
+#   gbmr7 (row 12) 9 h 6 min, gbmr4 (row 9) 2 h 28 min, the other 17 alphabets 155 min
+#   in all; peak memory 64 GB (the cap) for the tasks holding gbmr7 and gbmr4, 26 GB or
+#   less for the rest. See notebooks/234_submit_fun_proteome.sh.
 set -euo pipefail
 
 : "${SCRATCH:?}" "${SLURM_SUBMIT_DIR:?}" "${SLURM_ARRAY_TASK_ID:?}" "${L_SCRATCH_JOB:?}"
 SCRIPTS=$SLURM_SUBMIT_DIR/notebooks
-WORK=$SCRATCH/233-kmerseek-alphabets
+WORK=${WORK:-$SCRATCH/233-kmerseek-alphabets}
 export KMERSEEK=${KMERSEEK:-$SCRATCH/301-kmerseek-v0.4.0/target/release/kmerseek}
 export HUMAN=${HUMAN:-$SCRATCH/data/gencode/human/v49/gencode.v49.pc_translations.canonical.fa}
 export QUERY=${QUERY:-$WORK/Bs_proteins.fa}
@@ -48,6 +53,9 @@ export OUT_DIR=${OUT_DIR:-$WORK}
 export WORK_DIR=$L_SCRATCH_JOB/233
 export RAYON_NUM_THREADS=$SLURM_CPUS_PER_TASK
 N_TASKS=4
+# ROW_GROUPS, if set, gives each array task its own rows of 233_arms.tsv: groups split by
+# ';', rows by ','. Task t runs group t. Unset: task t runs rows t, t+4, t+8, ...
+ROW_GROUPS=${ROW_GROUPS:-}
 
 for f in "$KMERSEEK" "$HUMAN" "$QUERY" "$SCRIPTS/233_arms.tsv" "$SCRIPTS/233_kmerseek_alphabet_arm.py"; do
     [ -s "$f" ] || { echo "233: missing input $f" >&2; exit 2; }
@@ -59,8 +67,15 @@ module load gcc/14.2.0 python/3.12.1
 df -h "$L_SCRATCH"
 
 n_rows=$(( $(wc -l < "$SCRIPTS/233_arms.tsv") - 1 ))
+if [ -n "$ROW_GROUPS" ]; then
+    IFS=';' read -ra groups <<< "$ROW_GROUPS"
+    IFS=',' read -ra rows <<< "${groups[$SLURM_ARRAY_TASK_ID]:?no row group for task $SLURM_ARRAY_TASK_ID}"
+else
+    rows=()
+    for (( row = SLURM_ARRAY_TASK_ID; row < n_rows; row += N_TASKS )); do rows+=("$row"); done
+fi
 failed=()
-for (( row = SLURM_ARRAY_TASK_ID; row < n_rows; row += N_TASKS )); do
+for row in "${rows[@]}"; do
     echo "233: row $row start $(date)"
     # one alphabet failing must not stop the others in this task
     python3 "$SCRIPTS/233_kmerseek_alphabet_arm.py" "$row" || failed+=("$row")

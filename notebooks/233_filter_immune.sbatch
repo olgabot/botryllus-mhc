@@ -22,7 +22,7 @@
 # uncompressed, so ~1 h for it; the 19 files run 8 at a time.
 set -euo pipefail
 : "${SCRATCH:?}" "${SLURM_SUBMIT_DIR:?}"
-WORK=$SCRATCH/233-kmerseek-alphabets
+WORK=${WORK:-$SCRATCH/233-kmerseek-alphabets}
 GENES=$SLURM_SUBMIT_DIR/notebooks/data/go0002376_immune_system_process_human_quickgo.tsv
 mkdir -p "$WORK/immune"
 [ -s "$GENES" ] || { echo "233: missing $GENES" >&2; exit 2; }

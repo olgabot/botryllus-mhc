@@ -21,7 +21,7 @@
 #   sbatch --dependency=afterok:<filter job id> notebooks/233_summarise_inf.sbatch
 set -euo pipefail
 : "${SCRATCH:?}"
-IMMUNE=$SCRATCH/233-kmerseek-alphabets/immune
+IMMUNE=${WORK:-$SCRATCH/233-kmerseek-alphabets}/immune
 
 summarise_one() {
     set -euo pipefail
