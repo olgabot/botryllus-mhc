@@ -189,11 +189,6 @@ IMAGES := \
   https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/52/52ccce28d2ab928ab862e25aae26314d69c8e38bd41ca9431c67ef05221348aa/data \
   https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/95/95c0d3d867f5bc805b926b08ee761a993b24062739743eb82cc56363e0f7817d/data
 
-# The 5.59 tarball's initial_setup.py indexes the HMM libraries with its bundled HMMER 3.1b1,
-# whose index format the container's HMMER 3.3.2 rejects ("Failed to open binary auxfiles
-# ... use hmmpress first"), so sherlock-untar-ips re-indexes them with the container.
-IPS_IMAGE := depot.galaxyproject.org-singularity-interproscan-5.59_91.0--hec16e2b_1.img
-
 # Speed floor + resume: a bare curl on a multi-GB file can stall for hours without failing
 CURL := curl -L --fail --continue-at - --speed-limit 10240 --speed-time 60 --retry 10
 # $(1)=file in SH_DB_DIR  $(2)=url. Downloads to .part and renames when complete, so a
@@ -266,10 +261,7 @@ sherlock-untar-ips:
 	      if [ -f setup.py ]; then python3 setup.py -f interproscan.properties; \
 	      else python3 initial_setup.py; fi; \
 	      touch $(SH_IPS_DIR)/.unpacked; \
-	    fi; \
-	    cd $(SH_IPS_DIR); \
-	    for m in $$(find data -name "*.h3m"); do \
-	      singularity exec $(SH_IMG_DIR)/$(IPS_IMAGE) hmmpress -f $${m%.h3m} >/dev/null; done'
+	    fi'
 	ls $(SH_IPS_DIR)/data
 	ls $(SH_IPS_DIR)/data/pfam/*/
 
