@@ -151,8 +151,10 @@ def main():
             rows.append(("proteinannotator", r["step"], r["n_tasks"], r["pilot_wall_s"] / 3600,
                          r["pilot_cpu_h"], r["proteome_cpu_h"], r["proteome_wall_h"]))
 
-    for name, process, cpus in [("interproscan_full", "INTERPROSCAN_FULL", 16),
-                                ("unifire_lite", "UNIFIRE_LITE", 4)]:
+    # InterProScan runs inside proteinannotator, so its time is in that pipeline's rows.
+    # Foldseek searches the 500 ESMFold structures, so it scales with residues too.
+    for name, process, cpus in [("unifire_lite", "UNIFIRE_LITE", 4),
+                                ("foldseek_afdb_swissprot", "FOLDSEEK", 16)]:
         wall = pilot_task_s(raw, process)
         if wall is not None:
             ratio = res_prot / res_pilot

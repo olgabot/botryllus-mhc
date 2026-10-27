@@ -1,12 +1,13 @@
-// Timing pilot: nf-core/proteinannotator, ESMFold (nf-core/proteinfold 2.0.0's image),
-// InterProScan with every member database, and UniFIRE on 500 Botryllus proteins drawn to
-// match the proteome's length spread. Run through `make run` (see the Makefile header) so
-// the head sits in tmux on a compute node and `make watch` shows the live task table.
+// Timing pilot: nf-core/proteinannotator (InterProScan with every member database inside
+// it), UniFIRE, ESMFold (nf-core/proteinfold 2.0.0's image) and Foldseek on 500 Botryllus
+// proteins drawn to match the proteome's length spread. Run through `make run` (see the
+// Makefile header) so the head sits in tmux on a compute node and `make watch` shows the
+// live task table.
 //
-//   IPS_DATA ──┬── PROTEINANNOTATOR            (nested nf-core run, its own task table:
-//              │                                 `make pa-progress`)
-//              └── INTERPROSCAN_FULL ── UNIFIRE_LITE
-//   ESMFOLD                                     (1 GPU, all 500 proteins in one task)
+//   IPS_DATA ── PROTEINANNOTATOR ── UNIFIRE_LITE   (nested nf-core run, its own task table:
+//                                                   `make pa-progress`)
+//   ESMFOLD ── FOLDSEEK                            (1 GPU, all 500 proteins in one task;
+//                                                   then 500 structures vs AFDB Swiss-Prot)
 //
 // Every task's time is in the trace (params.pilot_dir/pipeline_info/pilot_trace.txt), which
 // bin/scale_timings.py scales to the whole proteome.
@@ -64,6 +65,7 @@ process PROTEINANNOTATOR {
     output:
     path 'pipeline_info/execution_trace_*.txt', emit: trace
     path 'proteinannotator.log'
+    path 'interproscan/*.xml', emit: xml
 
     script:
     def launch = "${params.pilot_dir}/proteinannotator"
@@ -89,53 +91,25 @@ process PROTEINANNOTATOR {
         --interproscan_batch_size ${params.interproscan_batch_size}
     cp -r ${launch}/results/pipeline_info \$task_dir/
     cp ${launch}/nextflow.log \$task_dir/proteinannotator.log
+    # The pipeline 'ignore's a failed InterProScan batch and still ends "completed", so
+    # count the batches: every one must have written its XML.
+    mkdir -p \$task_dir/interproscan
+    cp ${launch}/results/functional_annotation/interproscan/*/*.xml \$task_dir/interproscan/
+    want=\$(( (\$(grep -c '^>' \$fasta) + ${params.interproscan_batch_size} - 1) / ${params.interproscan_batch_size} ))
+    got=\$(ls \$task_dir/interproscan/*.xml | wc -l)
+    [ "\$got" -eq "\$want" ] || { echo "InterProScan wrote \$got of \$want batch XMLs" >&2; exit 1; }
     """
 
     stub:
     """
-    mkdir -p pipeline_info
-    touch pipeline_info/execution_trace_stub.txt proteinannotator.log
+    mkdir -p pipeline_info interproscan
+    touch pipeline_info/execution_trace_stub.txt proteinannotator.log interproscan/pilot500_batch0.xml
     """
 }
 
-// Every member database InterProScan 5.59 ships (no --applications), set up the way the
-// proteinannotator module does it: copy interproscan.properties, point bin.directory at
-// the image. The FASTA carries OX=30301 because UniFIRE reads the taxon from this XML.
-process INTERPROSCAN_FULL {
-    tag 'pilot500'
-    container params.ips_image
-    cpus 16
-    memory '32 GB'
-    time '24h'
-
-    input:
-    path ips_dir
-    path fasta
-
-    output:
-    path 'pilot500_full.xml', emit: xml
-    path 'pilot500_full.tsv'
-
-    script:
-    """
-    ln -sfn \$(readlink -f ${ips_dir})/data data
-    INTERPROSCAN_DIR="\$(dirname "\$(dirname "\$(which interproscan.sh)")")"
-    cp "\$(find "\$INTERPROSCAN_DIR/share" -name interproscan.properties)" .
-    sed -i "/^bin\\.directory=/ s|.*|bin.directory=\$INTERPROSCAN_DIR/bin|" interproscan.properties
-    export INTERPROSCAN_CONF=interproscan.properties
-    tmp=\${L_SCRATCH:-\$PWD}/ips-tmp
-    interproscan.sh --cpu ${task.cpus} --disable-precalc --input ${fasta} \\
-        --formats XML,TSV --output-file-base pilot500_full --tempdir \$tmp
-    """
-
-    stub:
-    """
-    touch pilot500_full.xml pilot500_full.tsv
-    """
-}
-
-// UniFIRE's lite image on that XML: UniRule, ARBA and PIRSR. Nextflow runs the image with
-// `exec`, so the image's entry script is called by its path.
+// UniFIRE's lite image on proteinannotator's InterProScan XML, one batch at a time: UniRule,
+// ARBA and PIRSR. The FASTA headers carry OX=30301, which UniFIRE reads from the XML.
+// Nextflow runs the image with `exec`, so the image's entry script is called by its path.
 process UNIFIRE_LITE {
     tag 'pilot500'
     container params.unifire_sif
@@ -145,23 +119,26 @@ process UNIFIRE_LITE {
     time '6h'
 
     input:
-    path xml
+    path xmls
 
     output:
-    path 'out/predictions*'
+    path 'out/*/predictions*'
     path 'unifire.log'
 
     script:
     """
     set -o pipefail
-    mkdir -p out
-    /opt/scripts/bin/unifire-workflow.sh -i \$PWD/${xml} -t iprscanxml -o \$PWD/out 2>&1 | tee unifire.log
+    for xml in ${xmls}; do
+        b=\$(basename \$xml .xml)
+        mkdir -p out/\$b
+        /opt/scripts/bin/unifire-workflow.sh -i \$PWD/\$xml -t iprscanxml -o \$PWD/out/\$b 2>&1 | tee -a unifire.log
+    done
     """
 
     stub:
     """
-    mkdir -p out
-    touch out/predictions_unirule.out unifire.log
+    mkdir -p out/pilot500_batch0
+    touch out/pilot500_batch0/predictions_unirule.out unifire.log
     """
 }
 
@@ -186,6 +163,7 @@ process ESMFOLD {
     output:
     path 'esm-fold.log'
     path 'gpu.txt'
+    path 'pdb', emit: pdb
 
     script:
     """
@@ -198,15 +176,51 @@ process ESMFOLD {
 
     stub:
     """
-    touch esm-fold.log gpu.txt
+    mkdir -p pdb
+    touch esm-fold.log gpu.txt pdb/stub.pdb
+    """
+}
+
+// Foldseek 9.427df8a, the version nf-core/proteinfold 2.0.0 pins, searching every ESMFold
+// structure against AlphaFold DB's Swiss-Prot set (`make stage` downloads it). Proteinfold
+// runs this as `foldseek easy-search` per protein; here one task searches all 500, and the
+// trace's realtime is the whole search.
+process FOLDSEEK {
+    tag 'pilot500'
+    container params.foldseek_sif
+    cpus 16
+    memory '64 GB'
+    time '8h'
+
+    input:
+    path pdb
+    path db_dir
+
+    output:
+    path 'pilot500_afdb_swissprot.m8'
+    path 'foldseek.log'
+
+    script:
+    """
+    set -o pipefail
+    foldseek easy-search ${pdb} ${db_dir}/${params.foldseek_db_name} pilot500_afdb_swissprot.m8 \
+        \${L_SCRATCH:-\$PWD}/foldseek-tmp --threads ${task.cpus} \
+        --format-output query,target,fident,alnlen,evalue,bits,prob,alntmscore,qtmscore,ttmscore,theader \
+        2>&1 | tee foldseek.log
+    """
+
+    stub:
+    """
+    touch pilot500_afdb_swissprot.m8 foldseek.log
     """
 }
 
 workflow {
     ips = IPS_DATA(file(params.ips_tarball, checkIfExists: true),
                    file("${params.ips_tarball}.md5", checkIfExists: true)).dir
-    PROTEINANNOTATOR(ips, file(params.fasta, checkIfExists: true))
-    INTERPROSCAN_FULL(ips, file(params.fasta_ox, checkIfExists: true))
-    UNIFIRE_LITE(INTERPROSCAN_FULL.out.xml)
+    // The FASTA with OX=30301 headers, so UniFIRE can read the taxon from the XML
+    PROTEINANNOTATOR(ips, file(params.fasta_ox, checkIfExists: true))
+    UNIFIRE_LITE(PROTEINANNOTATOR.out.xml)
     ESMFOLD(file(params.fasta, checkIfExists: true), file(params.esmfold_weights, checkIfExists: true))
+    FOLDSEEK(ESMFOLD.out.pdb, file(params.foldseek_db_dir, checkIfExists: true))
 }

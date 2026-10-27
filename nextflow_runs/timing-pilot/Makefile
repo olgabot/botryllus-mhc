@@ -1,12 +1,13 @@
-# Timing pilot: how long would nf-core/proteinannotator, nf-core/proteinfold (ESMFold),
-# InterProScan with every member database, and UniFIRE take on the 45,339-protein
+# Timing pilot: how long would nf-core/proteinannotator (with InterProScan's every member
+# database), UniFIRE, nf-core/proteinfold (ESMFold) and Foldseek take on the 45,339-protein
 # Botryllus proteome? Each runs on 500 proteins drawn to match the proteome's length
 # spread, on Sherlock, and bin/scale_timings.py scales the measured times up.
 #
 #   make sample                   # LAPTOP: draw the 500 proteins (committed, so done once)
 #   make sherlock-sync            # LAPTOP: push this branch, clone or pull it under $SCRATCH
 #   ssh sherlock; cd $SCRATCH/botryllus-mhc-annotation-timing-pilot/nextflow_runs/timing-pilot
-#   make stage                    # LOGIN NODE: ESMFold weights and image, UniFIRE lite image
+#   make stage                    # LOGIN NODE: ESMFold weights and image, UniFIRE lite image,
+#                                 #   Foldseek image and AlphaFold DB Swiss-Prot
 #   make run                      # LOGIN NODE: one Nextflow run (main.nf); head job in tmux
 #   make watch                    # the live Nextflow task table (Ctrl-b d to leave it)
 #   make pa-progress              # proteinannotator's own progress (a run inside the run)
@@ -46,6 +47,8 @@ SH_JAVA_HOME ?= /share/software/user/open/java/18.0.2
 ESMFOLD_IMAGE := docker://quay.io/nf-core/proteinfold_esmfold:2.0.0
 ESM_URL       := https://dl.fbaipublicfiles.com/fair-esm
 UNIFIRE_LITE  := docker://dockerhub.ebi.ac.uk/uniprot-public/unifire:2026.3-lite
+# The Foldseek nf-core/proteinfold 2.0.0 pins; a ready .sif, so no build step
+FOLDSEEK_SIF  := https://depot.galaxyproject.org/singularity/foldseek:9.427df8a--pl5321hb365157_0
 
 CURL := curl -L --fail --continue-at - --speed-limit 10240 --speed-time 60 --retry 10
 # $(1)=destination  $(2)=url. Downloads to .part and renames when whole.
@@ -84,9 +87,14 @@ stage: check-login
 	  apptainer build --sandbox $(PILOT)/containers/proteinfold_esmfold_2.0.0 $(ESMFOLD_IMAGE)
 	[ -s $(PILOT)/containers/unifire-2026.3-lite.sif ] || [ -d $(PILOT)/containers/unifire-2026.3-lite ] || \
 	  apptainer build --sandbox $(PILOT)/containers/unifire-2026.3-lite $(UNIFIRE_LITE)
+	$(call GET,$(PILOT)/containers/foldseek-9.427df8a.sif,$(FOLDSEEK_SIF))
+	# AlphaFold DB Swiss-Prot as a Foldseek database: a download and an untar, one thread
+	[ -s $(PILOT)/foldseek_db/afdb_swissprot.dbtype ] || { mkdir -p $(PILOT)/foldseek_db && \
+	  apptainer exec --bind $(SCRATCH) $(PILOT)/containers/foldseek-9.427df8a.sif foldseek databases \
+	    Alphafold/Swiss-Prot $(PILOT)/foldseek_db/afdb_swissprot $(PILOT)/foldseek_db/tmp --threads 1; }
 	[ -s $(IPS_IMAGE) ] || { echo "missing $(IPS_IMAGE): run make sherlock-stage in ../nf-core-proteinannotator"; exit 1; }
 	[ -s $(PA_DB_DIR)/interproscan-$(IPS_VERSION)-64-bit.tar.gz ] || { echo "missing the InterProScan tarball"; exit 1; }
-	ls -la $(PILOT)/esmfold_params/checkpoints $(PILOT)/containers
+	ls -la $(PILOT)/esmfold_params/checkpoints $(PILOT)/containers $(PILOT)/foldseek_db
 
 # Head job: runs `nextflow run main.nf` in tmux on a compute node (bin/nf-head, copied from
 # 2024-kmerseek-analysis/scripts/nf-head), so the run survives logging out and `make watch`
@@ -110,6 +118,7 @@ HEAD_SUBMIT = HEAD_ACCOUNT=$(SLURM_ACCOUNT) HEAD_PARTITION=$(HEAD_PARTITION) \
 run: check-login
 	@squeue --me -h -n $(HEAD_JOBNAME) | grep -q . && { echo "$(HEAD_JOBNAME) is already queued"; exit 1; } || true
 	[ -s $(PILOT)/containers/proteinfold_esmfold_2.0.0.sif ] && [ -s $(PILOT)/containers/unifire-2026.3-lite.sif ] \
+	  && [ -s $(PILOT)/containers/foldseek-9.427df8a.sif ] && [ -s $(PILOT)/foldseek_db/afdb_swissprot.dbtype ] \
 	  || { echo "images missing: run make stage, then make sif"; exit 1; }
 	mkdir -p $(PILOT)/launch
 	cd $(PILOT)/launch && export JAVA_HOME=$(SH_JAVA_HOME) PATH=$(SH_JAVA_HOME)/bin:$$PATH && \
@@ -158,7 +167,8 @@ collect:
 	mkdir -p results
 	rsync -av --prune-empty-dirs --include='*/' \
 	  --include='pilot_trace.txt' --include='execution_trace_*.txt' --include='esm-fold.log' \
-	  --include='gpu.txt' --include='pilot500_full.tsv' --include='predictions*' --include='unifire.log' \
+	  --include='gpu.txt' --include='predictions*' --include='unifire.log' \
+	  --include='*.m8' --include='foldseek.log' \
 	  --exclude='*' \
 	  $(SHERLOCK_HOST):'$$SCRATCH/botryllus-annotation-timing-pilot/results/' results/raw/
 	rsync -av $(SHERLOCK_HOST):'$$SCRATCH/botryllus-annotation-timing-pilot/pipeline_info/pilot_trace.txt' results/raw/
