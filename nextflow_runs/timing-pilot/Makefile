@@ -75,7 +75,7 @@ sherlock-sync:
 check-login:
 	@case "$$(hostname)" in *-ln*) ;; *) echo "run this on a Sherlock login node"; exit 1;; esac
 
-# LOGIN NODE: compute nodes have no internet. About 8 GB of weights and 14 GB of images.
+# LOGIN NODE: about 8 GB of weights, 14 GB of images and a 3.8 GB Foldseek database.
 stage: check-login
 	mkdir -p $(PILOT)/esmfold_params/checkpoints $(PILOT)/containers $(PILOT)/logs
 	$(call GET,$(PILOT)/esmfold_params/checkpoints/esmfold_3B_v1.pt,$(ESM_URL)/models/esmfold_3B_v1.pt)
