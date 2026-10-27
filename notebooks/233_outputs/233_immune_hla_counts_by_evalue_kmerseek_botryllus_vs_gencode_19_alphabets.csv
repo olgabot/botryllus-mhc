@@ -1,0 +1,115 @@
+alphabet,gene_set,max_evalue,n_matches,n_botryllus_proteins,n_human_genes
+hp_kyte_doolittle2,all immune genes,10.0,560,389,206
+hp_kyte_doolittle2,all immune genes,1.0,222,180,113
+hp_kyte_doolittle2,all immune genes,0.001,35,29,19
+hp_kyte_doolittle2,HLA genes,10.0,0,0,0
+hp_kyte_doolittle2,HLA genes,1.0,0,0,0
+hp_kyte_doolittle2,HLA genes,0.001,0,0,0
+hp_lehninger2,all immune genes,10.0,29649,19499,1644
+hp_lehninger2,all immune genes,1.0,3976,2360,831
+hp_lehninger2,all immune genes,0.001,1236,669,328
+hp_lehninger2,HLA genes,10.0,236,169,18
+hp_lehninger2,HLA genes,1.0,11,10,4
+hp_lehninger2,HLA genes,0.001,0,0,0
+hp_lehninger_c_nonpolar2,all immune genes,10.0,27820,16884,1608
+hp_lehninger_c_nonpolar2,all immune genes,1.0,3744,2158,796
+hp_lehninger_c_nonpolar2,all immune genes,0.001,1150,630,312
+hp_lehninger_c_nonpolar2,HLA genes,10.0,309,224,19
+hp_lehninger_c_nonpolar2,HLA genes,1.0,5,5,2
+hp_lehninger_c_nonpolar2,HLA genes,0.001,0,0,0
+hp_pbotc_1st_ed2,all immune genes,10.0,21279,13301,1589
+hp_pbotc_1st_ed2,all immune genes,1.0,3466,1673,619
+hp_pbotc_1st_ed2,all immune genes,0.001,1213,613,314
+hp_pbotc_1st_ed2,HLA genes,10.0,84,72,19
+hp_pbotc_1st_ed2,HLA genes,1.0,1,1,1
+hp_pbotc_1st_ed2,HLA genes,0.001,0,0,0
+hp_thomas_dill2,all immune genes,10.0,6149,3229,965
+hp_thomas_dill2,all immune genes,1.0,1889,929,410
+hp_thomas_dill2,all immune genes,0.001,559,381,216
+hp_thomas_dill2,HLA genes,10.0,8,8,6
+hp_thomas_dill2,HLA genes,1.0,0,0,0
+hp_thomas_dill2,HLA genes,0.001,0,0,0
+hp_thomas_dill_no_c2,all immune genes,10.0,594,405,227
+hp_thomas_dill_no_c2,all immune genes,1.0,224,182,111
+hp_thomas_dill_no_c2,all immune genes,0.001,30,24,17
+hp_thomas_dill_no_c2,HLA genes,10.0,0,0,0
+hp_thomas_dill_no_c2,HLA genes,1.0,0,0,0
+hp_thomas_dill_no_c2,HLA genes,0.001,0,0,0
+hp_lehninger_hpc3,all immune genes,10.0,12366,8099,1434
+hp_lehninger_hpc3,all immune genes,1.0,292,187,64
+hp_lehninger_hpc3,all immune genes,0.001,17,9,7
+hp_lehninger_hpc3,HLA genes,10.0,59,39,19
+hp_lehninger_hpc3,HLA genes,1.0,0,0,0
+hp_lehninger_hpc3,HLA genes,0.001,0,0,0
+gbmr4,all immune genes,10.0,8321,5771,850
+gbmr4,all immune genes,1.0,703,464,184
+gbmr4,all immune genes,0.001,15,13,8
+gbmr4,HLA genes,10.0,11,9,7
+gbmr4,HLA genes,1.0,1,1,1
+gbmr4,HLA genes,0.001,0,0,0
+polarity4,all immune genes,10.0,16808,6605,1453
+polarity4,all immune genes,1.0,2825,1084,662
+polarity4,all immune genes,0.001,809,379,202
+polarity4,HLA genes,10.0,244,75,19
+polarity4,HLA genes,1.0,12,5,6
+polarity4,HLA genes,0.001,0,0,0
+wwmj5,all immune genes,10.0,20863,10307,1384
+wwmj5,all immune genes,1.0,8379,3093,806
+wwmj5,all immune genes,0.001,3571,1537,526
+wwmj5,HLA genes,10.0,42,34,17
+wwmj5,HLA genes,1.0,0,0,0
+wwmj5,HLA genes,0.001,0,0,0
+dayhoff6,all immune genes,10.0,2,2,2
+dayhoff6,all immune genes,1.0,0,0,0
+dayhoff6,all immune genes,0.001,0,0,0
+dayhoff6,HLA genes,10.0,0,0,0
+dayhoff6,HLA genes,1.0,0,0,0
+dayhoff6,HLA genes,0.001,0,0,0
+gbmr7,all immune genes,10.0,412,72,152
+gbmr7,all immune genes,1.0,196,48,92
+gbmr7,all immune genes,0.001,2,2,2
+gbmr7,HLA genes,10.0,0,0,0
+gbmr7,HLA genes,1.0,0,0,0
+gbmr7,HLA genes,0.001,0,0,0
+funcgroups8,all immune genes,10.0,51423,10082,1520
+funcgroups8,all immune genes,1.0,14481,3172,942
+funcgroups8,all immune genes,0.001,2787,1195,506
+funcgroups8,HLA genes,10.0,2710,848,19
+funcgroups8,HLA genes,1.0,805,285,17
+funcgroups8,HLA genes,0.001,14,9,7
+mmseqs12,all immune genes,10.0,24137,8345,1340
+mmseqs12,all immune genes,1.0,13878,3623,796
+mmseqs12,all immune genes,0.001,6159,2143,589
+mmseqs12,HLA genes,10.0,29,20,14
+mmseqs12,HLA genes,1.0,0,0,0
+mmseqs12,HLA genes,0.001,0,0,0
+sdm12,all immune genes,10.0,23072,7291,1204
+sdm12,all immune genes,1.0,11617,3367,767
+sdm12,all immune genes,0.001,3764,1614,527
+sdm12,HLA genes,10.0,16,14,7
+sdm12,HLA genes,1.0,0,0,0
+sdm12,HLA genes,0.001,0,0,0
+wass14,all immune genes,10.0,16937,7403,1349
+wass14,all immune genes,1.0,8764,2761,735
+wass14,all immune genes,0.001,3996,1611,545
+wass14,HLA genes,10.0,23,21,13
+wass14,HLA genes,1.0,0,0,0
+wass14,HLA genes,0.001,0,0,0
+hsdm17,all immune genes,10.0,22909,7033,1321
+hsdm17,all immune genes,1.0,10533,3153,783
+hsdm17,all immune genes,0.001,3699,1517,522
+hsdm17,HLA genes,10.0,145,111,16
+hsdm17,HLA genes,1.0,7,5,5
+hsdm17,HLA genes,0.001,0,0,0
+uniprot18,all immune genes,10.0,15446,6016,1251
+uniprot18,all immune genes,1.0,8915,2701,721
+uniprot18,all immune genes,0.001,3837,1511,532
+uniprot18,HLA genes,10.0,16,13,12
+uniprot18,HLA genes,1.0,0,0,0
+uniprot18,HLA genes,0.001,0,0,0
+protein20,all immune genes,10.0,23562,7393,1257
+protein20,all immune genes,1.0,14468,3656,788
+protein20,all immune genes,0.001,6623,2163,608
+protein20,HLA genes,10.0,18,18,13
+protein20,HLA genes,1.0,0,0,0
+protein20,HLA genes,0.001,0,0,0
