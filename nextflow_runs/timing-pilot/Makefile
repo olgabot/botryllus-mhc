@@ -80,10 +80,12 @@ stage: check-login
 	$(call GET,$(PILOT)/esmfold_params/checkpoints/esmfold_3B_v1.pt,$(ESM_URL)/models/esmfold_3B_v1.pt)
 	$(call GET,$(PILOT)/esmfold_params/checkpoints/esm2_t36_3B_UR50D.pt,$(ESM_URL)/models/esm2_t36_3B_UR50D.pt)
 	$(call GET,$(PILOT)/esmfold_params/checkpoints/esm2_t36_3B_UR50D-contact-regression.pt,$(ESM_URL)/regression/esm2_t36_3B_UR50D-contact-regression.pt)
-	[ -s $(PILOT)/containers/proteinfold_esmfold_2.0.0.sif ] || \
-	  apptainer pull $(PILOT)/containers/proteinfold_esmfold_2.0.0.sif $(ESMFOLD_IMAGE)
-	[ -s $(PILOT)/containers/unifire-2026.3-lite.sif ] || \
-	  apptainer pull $(PILOT)/containers/unifire-2026.3-lite.sif $(UNIFIRE_LITE)
+	# `apptainer pull` was killed on the login node (exit 137 in mksquashfs, 2026-10-27), so
+	# the login node only unpacks each image into a folder; `make run` squashes it in a job.
+	[ -s $(PILOT)/containers/proteinfold_esmfold_2.0.0.sif ] || [ -d $(PILOT)/containers/proteinfold_esmfold_2.0.0 ] || \
+	  apptainer build --sandbox $(PILOT)/containers/proteinfold_esmfold_2.0.0 $(ESMFOLD_IMAGE)
+	[ -s $(PILOT)/containers/unifire-2026.3-lite.sif ] || [ -d $(PILOT)/containers/unifire-2026.3-lite ] || \
+	  apptainer build --sandbox $(PILOT)/containers/unifire-2026.3-lite $(UNIFIRE_LITE)
 	[ -s $(IPS_IMAGE) ] || { echo "missing $(IPS_IMAGE): run make sherlock-stage in ../nf-core-proteinannotator"; exit 1; }
 	[ -s $(PA_DB_DIR)/interproscan-$(IPS_VERSION)-64-bit.tar.gz ] || { echo "missing the InterProScan tarball"; exit 1; }
 	ls -la $(PILOT)/esmfold_params/checkpoints $(PILOT)/containers
@@ -118,13 +120,19 @@ run: check-login
 	      --interproscan_db $(IPS_DIR)/data --interproscan_applications $(INTERPROSCAN_APPS) \
 	      --interproscan_batch_size $(INTERPROSCAN_BATCH_SIZE)'); \
 	echo -e "proteinannotator\t$$head" >> $(PILOT)/jobs.tsv; \
+	sif=$$(sbatch --parsable --job-name=pilot-sif-build --partition=hns,normal \
+	  --cpus-per-task=4 --mem=16G --time=02:00:00 --output=$(PILOT)/logs/sif-build-%j.out \
+	  --wrap='set -euo pipefail; cd $(PILOT)/containers; \
+	    for img in proteinfold_esmfold_2.0.0 unifire-2026.3-lite; do \
+	      [ -s $$img.sif ] || apptainer build $$img.sif $$img/; done; ls -la'); \
+	echo -e "sif-build\t$$sif" >> $(PILOT)/jobs.tsv; \
 	ips=$$(sbatch --parsable $$dep --output=$(PILOT)/logs/ips-full-%j.out \
 	  interproscan_full.sbatch $(PILOT) $(IPS_DIR)/data $(IPS_IMAGE) $(CURDIR)/$(SAMPLE_OX)); \
 	echo -e "interproscan_full\t$$ips" >> $(PILOT)/jobs.tsv; \
-	uf=$$(sbatch --parsable --dependency=afterok:$$ips --output=$(PILOT)/logs/unifire-%j.out \
+	uf=$$(sbatch --parsable --dependency=afterok:$$ips:$$sif --output=$(PILOT)/logs/unifire-%j.out \
 	  unifire_lite.sbatch $(PILOT)); \
 	echo -e "unifire\t$$uf" >> $(PILOT)/jobs.tsv; \
-	esm=$$(sbatch --parsable --output=$(PILOT)/logs/esmfold-%j.out \
+	esm=$$(sbatch --parsable --dependency=afterok:$$sif --output=$(PILOT)/logs/esmfold-%j.out \
 	  esmfold.sbatch $(PILOT) $(CURDIR)/$(SAMPLE)); \
 	echo -e "esmfold\t$$esm" >> $(PILOT)/jobs.tsv; \
 	cat $(PILOT)/jobs.tsv
