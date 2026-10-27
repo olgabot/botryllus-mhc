@@ -90,11 +90,12 @@ stage: check-login
 
 # Head job: runs `nextflow run main.nf` in tmux on a compute node (bin/nf-head, copied from
 # 2024-kmerseek-analysis/scripts/nf-head), so the run survives logging out and `make watch`
-# attaches to the live task table. 3 days: PROTEINANNOTATOR's own limit is 2 days.
+# attaches to the live task table. 2 days is the normal QOS cap (a 3-day ask was refused
+# 2026-10-27, QOSMaxWallDurationPerJobLimit); PROTEINANNOTATOR gets 46 h inside it.
 SLURM_ACCOUNT ?= ayeletv
 HEAD_PARTITION ?= hns,normal
 HEAD_QOS     ?= normal
-HEAD_TIME    ?= 3-00:00:00
+HEAD_TIME    ?= 2-00:00:00
 HEAD_CPUS    ?= 2
 HEAD_MEM     ?= 8G
 HEAD_SESSION ?= timing-pilot

@@ -55,7 +55,7 @@ process PROTEINANNOTATOR {
     tag 'pilot500'
     cpus 2
     memory '8 GB'
-    time '2d'
+    time '46h'
 
     input:
     path ips_dir
