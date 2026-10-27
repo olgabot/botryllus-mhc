@@ -66,6 +66,8 @@ sherlock-sync:
 	ssh $(SHERLOCK_HOST) 'set -e; \
 	  if [ ! -d $(SHERLOCK_CLONE)/.git ]; then git clone --branch $(BRANCH) $(REPO_URL) $(SHERLOCK_CLONE); \
 	  else cd $(SHERLOCK_CLONE) && git fetch origin $(BRANCH) && git checkout $(BRANCH) && git pull --ff-only; fi'
+	# The repo ignores FASTA files (.gitignore), so the two sample FASTAs go over by rsync
+	rsync -av $(SAMPLE) $(SAMPLE_OX) $(SHERLOCK_HOST):$(SHERLOCK_CLONE)/nextflow_runs/timing-pilot/
 
 check-login:
 	@case "$$(hostname)" in *-ln*) ;; *) echo "run this on a Sherlock login node"; exit 1;; esac
