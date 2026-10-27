@@ -7,7 +7,9 @@
 #   make sherlock-sync            # LAPTOP: push this branch, clone or pull it under $SCRATCH
 #   ssh sherlock; cd $SCRATCH/botryllus-mhc-annotation-timing-pilot/nextflow_runs/timing-pilot
 #   make stage                    # LOGIN NODE: ESMFold weights and image, UniFIRE lite image
-#   make run                      # LOGIN NODE: submit every job, chained by dependencies
+#   make run                      # LOGIN NODE: one Nextflow run (main.nf); head job in tmux
+#   make watch                    # the live Nextflow task table (Ctrl-b d to leave it)
+#   make pa-progress              # proteinannotator's own progress (a run inside the run)
 #   make running                  # what is queued or running
 #   make collect                  # LAPTOP: copy the traces back and write the timing table
 #
@@ -39,13 +41,7 @@ IPS_IMAGE    := $(PA_IMG_DIR)/depot.galaxyproject.org-singularity-interproscan-5
 NXF_VERSION  ?= 25.10.4
 SH_NEXTFLOW  ?= $(HOME)/software/nextflow/$(NXF_VERSION)/nextflow
 SH_JAVA_HOME ?= /share/software/user/open/java/18.0.2
-SH_LOAD      := export JAVA_HOME=$(SH_JAVA_HOME) PATH=$(SH_JAVA_HOME)/bin:$$PATH;
-PIPELINE_COMMIT ?= c70cd5849c80b5b1b7477a451a03ad108eb4191a
-PA_CONFIG    := $(CURDIR)/../nf-core-proteinannotator/sherlock.config
-# The six databases ../nf-core-proteinannotator runs; the full set is interproscan_full.sbatch
-INTERPROSCAN_APPS ?= Hamap,PANTHER,PIRSF,TIGRFAM,sfld,Pfam
-# 100 per batch gives 5 batches, so per-batch times can be compared
-INTERPROSCAN_BATCH_SIZE ?= 100
+# The pipeline commit, databases, batch size and image paths main.nf uses are in nextflow.config
 
 ESMFOLD_IMAGE := docker://quay.io/nf-core/proteinfold_esmfold:2.0.0
 ESM_URL       := https://dl.fbaipublicfiles.com/fair-esm
@@ -55,7 +51,7 @@ CURL := curl -L --fail --continue-at - --speed-limit 10240 --speed-time 60 --ret
 # $(1)=destination  $(2)=url. Downloads to .part and renames when whole.
 GET = [ -s $(1) ] || { $(CURL) -o $(1).part $(2) && mv -f $(1).part $(1); }
 
-.PHONY: help sample sherlock-sync check-login stage run running collect
+.PHONY: help sample sherlock-sync check-login stage stub sif run watch pa-progress stop running collect
 
 help:
 	@sed -n '1,20p' Makefile
@@ -90,63 +86,77 @@ stage: check-login
 	[ -s $(PA_DB_DIR)/interproscan-$(IPS_VERSION)-64-bit.tar.gz ] || { echo "missing the InterProScan tarball"; exit 1; }
 	ls -la $(PILOT)/esmfold_params/checkpoints $(PILOT)/containers
 
-# LOGIN NODE: submits only. Job ids go to $(PILOT)/jobs.tsv.
-#   untar InterProScan 5.59 (skipped if done) -> proteinannotator head job
-#                                             -> full InterProScan -> UniFIRE lite
-#   ESMFold, independent
+# Head job: runs `nextflow run main.nf` in tmux on a compute node (bin/nf-head, copied from
+# 2024-kmerseek-analysis/scripts/nf-head), so the run survives logging out and `make watch`
+# attaches to the live task table. 3 days: PROTEINANNOTATOR's own limit is 2 days.
+SLURM_ACCOUNT ?= ayeletv
+HEAD_PARTITION ?= hns,normal
+HEAD_QOS     ?= normal
+HEAD_TIME    ?= 3-00:00:00
+HEAD_CPUS    ?= 2
+HEAD_MEM     ?= 8G
+HEAD_SESSION ?= timing-pilot
+HEAD_JOBNAME ?= nfdrv-timing-pilot
+HEAD_SUBMIT = HEAD_ACCOUNT=$(SLURM_ACCOUNT) HEAD_PARTITION=$(HEAD_PARTITION) \
+              HEAD_QOS=$(HEAD_QOS) HEAD_TIME=$(HEAD_TIME) \
+              HEAD_CPUS=$(HEAD_CPUS) HEAD_MEM=$(HEAD_MEM) \
+              HEAD_SESSION=$(HEAD_SESSION) HEAD_JOBNAME=$(HEAD_JOBNAME) \
+              $(CURDIR)/bin/nf-head
+
+# LOGIN NODE: one Nextflow run. The tasks and their order are in main.nf; sizes are there too.
 run: check-login
-	mkdir -p $(PILOT)/logs $(PILOT)/proteinannotator
-	printf 'id,fasta\npilot500,$(CURDIR)/$(SAMPLE)\n' > $(PILOT)/proteinannotator/samplesheet.csv
-	set -euo pipefail; \
-	dep=""; \
-	if [ ! -e $(IPS_DIR)/.setup_done ]; then \
-	  untar=$$(sbatch --parsable --job-name=ips-untar-5.59 --partition=hns,normal \
-	    --cpus-per-task=2 --mem=8G --time=03:00:00 --output=$(PILOT)/logs/ips-untar-%j.out \
-	    --wrap='set -eo pipefail; cd $(PA_DB_DIR); md5sum -c interproscan-$(IPS_VERSION)-64-bit.tar.gz.md5; \
-	      [ -d $(IPS_DIR)/data ] || tar -pxzf interproscan-$(IPS_VERSION)-64-bit.tar.gz; \
-	      cd $(IPS_DIR) && { python3 setup.py -f interproscan.properties || python3 setup.py interproscan.properties; } && touch .setup_done'); \
-	  dep="--dependency=afterok:$$untar"; echo -e "ips-untar\t$$untar" >> $(PILOT)/jobs.tsv; \
-	fi; \
-	head=$$(sbatch --parsable $$dep --job-name=pilot-proteinannotator --partition=hns,normal \
-	  --cpus-per-task=2 --mem=8G --time=2-00:00:00 --output=$(PILOT)/logs/head-%j.out \
-	  --wrap='$(SH_LOAD) set -euo pipefail; cd $(PILOT)/proteinannotator; \
-	    export NXF_OFFLINE=true NXF_OPTS="-Xms1g -Xmx6g" NXF_SINGULARITY_CACHEDIR=$(PA_IMG_DIR); \
-	    $(SH_NEXTFLOW) run nf-core/proteinannotator -r $(PIPELINE_COMMIT) \
-	      -profile singularity -c $(PA_CONFIG) -c $(CURDIR)/pilot.config \
-	      --input samplesheet.csv --outdir $(PILOT)/proteinannotator/results \
-	      -work-dir $(PILOT)/proteinannotator/work \
-	      --pfam_db $(PA_DB_DIR)/Pfam-A.38.2.hmm.gz --funfam_db $(PA_DB_DIR)/funfam-hmm3-v4_3_0.lib.gz \
-	      --nmpfams_db $(PA_DB_DIR)/nmpfamsdb.hmm.gz --metagroot_db $(PA_DB_DIR)/metagroot.hmm.gz \
-	      --interproscan_db $(IPS_DIR)/data --interproscan_applications $(INTERPROSCAN_APPS) \
-	      --interproscan_batch_size $(INTERPROSCAN_BATCH_SIZE)'); \
-	echo -e "proteinannotator\t$$head" >> $(PILOT)/jobs.tsv; \
-	sif=$$(sbatch --parsable --job-name=pilot-sif-build --partition=hns,normal \
-	  --cpus-per-task=4 --mem=16G --time=02:00:00 --output=$(PILOT)/logs/sif-build-%j.out \
+	@squeue --me -h -n $(HEAD_JOBNAME) | grep -q . && { echo "$(HEAD_JOBNAME) is already queued"; exit 1; } || true
+	[ -s $(PILOT)/containers/proteinfold_esmfold_2.0.0.sif ] && [ -s $(PILOT)/containers/unifire-2026.3-lite.sif ] \
+	  || { echo "images missing: run make stage, then make sif"; exit 1; }
+	mkdir -p $(PILOT)/launch
+	cd $(PILOT)/launch && export JAVA_HOME=$(SH_JAVA_HOME) PATH=$(SH_JAVA_HOME)/bin:$$PATH && \
+	  $(HEAD_SUBMIT) $(SH_NEXTFLOW) run $(CURDIR)/main.nf -resume
+
+# LOGIN NODE: main.nf's stub blocks in a 30-minute job on one node (stub_test.config).
+# Checks the wiring, the input paths and that each image starts, without real work.
+stub: check-login
+	mkdir -p $(PILOT)/stub-test/launch $(PILOT)/logs
+	cd $(PILOT)/stub-test/launch && srun --job-name=pilot-stub --partition=hns,normal --cpus-per-task=4 \
+	  --mem=16G --time=00:30:00 bash -c 'export JAVA_HOME=$(SH_JAVA_HOME) PATH=$(SH_JAVA_HOME)/bin:$$PATH; \
+	  $(SH_NEXTFLOW) run $(CURDIR)/main.nf -stub -ansi-log false -c $(CURDIR)/stub_test.config'
+
+# LOGIN NODE: squash the unpacked image folders from `make stage` into .sif files, in a job
+# (mksquashfs is killed on login nodes). Already done on 2026-10-27; kept for a fresh setup.
+sif: check-login
+	sbatch --wait --job-name=pilot-sif-build --partition=hns,normal --cpus-per-task=4 --mem=16G \
+	  --time=02:00:00 --output=$(PILOT)/logs/sif-build-%j.out \
 	  --wrap='set -euo pipefail; cd $(PILOT)/containers; \
 	    for img in proteinfold_esmfold_2.0.0 unifire-2026.3-lite; do \
-	      [ -s $$img.sif ] || apptainer build $$img.sif $$img/; done; ls -la'); \
-	echo -e "sif-build\t$$sif" >> $(PILOT)/jobs.tsv; \
-	ips=$$(sbatch --parsable $$dep --output=$(PILOT)/logs/ips-full-%j.out \
-	  interproscan_full.sbatch $(PILOT) $(IPS_DIR)/data $(IPS_IMAGE) $(CURDIR)/$(SAMPLE_OX)); \
-	echo -e "interproscan_full\t$$ips" >> $(PILOT)/jobs.tsv; \
-	uf=$$(sbatch --parsable --dependency=afterok:$$ips:$$sif --output=$(PILOT)/logs/unifire-%j.out \
-	  unifire_lite.sbatch $(PILOT)); \
-	echo -e "unifire\t$$uf" >> $(PILOT)/jobs.tsv; \
-	esm=$$(sbatch --parsable --dependency=afterok:$$sif --output=$(PILOT)/logs/esmfold-%j.out \
-	  esmfold.sbatch $(PILOT) $(CURDIR)/$(SAMPLE)); \
-	echo -e "esmfold\t$$esm" >> $(PILOT)/jobs.tsv; \
-	cat $(PILOT)/jobs.tsv
+	      [ -s $$img.sif ] || apptainer build $$img.sif $$img/; done; ls -la'
+
+# The live Nextflow table, read-only. Leave with Ctrl-b d; the run keeps going.
+watch:
+	@jid=$$(squeue -u $$USER -h -n $(HEAD_JOBNAME) -o "%i %T" | awk '$$2=="RUNNING"{print $$1; exit}'); \
+	 [ -n "$$jid" ] || { echo "no $(HEAD_JOBNAME) job is running"; squeue -u $$USER -h -n $(HEAD_JOBNAME); exit 1; }; \
+	 exec srun --jobid=$$jid --overlap --pty tmux -S /tmp/nf-head-$$jid attach -r -t $(HEAD_SESSION)
+
+# proteinannotator is a Nextflow run of its own inside the PROTEINANNOTATOR task, so its
+# tasks are not in the table above. This prints its latest progress lines once.
+pa-progress:
+	@f=$(PILOT)/proteinannotator/nextflow.log; [ -s $$f ] || { echo "proteinannotator has not started"; exit 0; }; \
+	 grep -E "Submitted process|Task completed|ERROR|WARN" $$f | sed 's/^.*\] //' | tail -n 25
+
+# Ctrl-C the run, so Nextflow cancels its own jobs
+stop:
+	@jid=$$(squeue -u $$USER -h -n $(HEAD_JOBNAME) -o "%i %T" | awk '$$2=="RUNNING"{print $$1; exit}'); \
+	 [ -n "$$jid" ] || { echo "no $(HEAD_JOBNAME) job is running"; exit 1; }; \
+	 scancel --signal=TERM --batch $$jid && echo "asked job $$jid to shut down"
 
 running:
-	@squeue --me -o "%.10i %.28j %.8T %.10M %.12l %R" | awk 'NR==1 || /pilot|ips-untar/'
+	@squeue --me -o "%.10i %.28j %.8T %.10M %.12l %R" | awk 'NR==1 || /nf-|nfdrv|pilot/'
 
 # LAPTOP: the small files the scaling needs, then the table and figure
 collect:
 	mkdir -p results
-	rsync -av --prune-empty-dirs --exclude='work/' --exclude='pdb/' --exclude='containers/' \
-	  --exclude='esmfold_params/' --include='*/' \
-	  --include='execution_trace_*.txt' --include='esm-fold.log' --include='gpu.txt' \
-	  --include='*_epoch.txt' --include='jobs.tsv' --include='pilot500_full.tsv' \
-	  --include='predictions*' --exclude='*' \
-	  $(SHERLOCK_HOST):'$$SCRATCH/botryllus-annotation-timing-pilot/' results/raw/
+	rsync -av --prune-empty-dirs --include='*/' \
+	  --include='pilot_trace.txt' --include='execution_trace_*.txt' --include='esm-fold.log' \
+	  --include='gpu.txt' --include='pilot500_full.tsv' --include='predictions*' --include='unifire.log' \
+	  --exclude='*' \
+	  $(SHERLOCK_HOST):'$$SCRATCH/botryllus-annotation-timing-pilot/results/' results/raw/
+	rsync -av $(SHERLOCK_HOST):'$$SCRATCH/botryllus-annotation-timing-pilot/pipeline_info/pilot_trace.txt' results/raw/
 	$(PYTHON) -I bin/scale_timings.py results/raw botryllus_pilot500_lengths.tsv $(PROTEOME) results

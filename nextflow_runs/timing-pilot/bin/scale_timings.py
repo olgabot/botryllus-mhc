@@ -52,7 +52,7 @@ def duration_s(text):
 
 
 def proteinannotator(raw, ratio):
-    traces = sorted(raw.glob("proteinannotator/results/pipeline_info/execution_trace_*.txt"))
+    traces = sorted(raw.glob("proteinannotator/pipeline_info/execution_trace_*.txt"))
     if not traces:
         return None
     trace = pl.read_csv(traces[-1], separator="\t", infer_schema_length=0)
@@ -82,11 +82,16 @@ def proteinannotator(raw, ratio):
     return steps
 
 
-def epoch_wall_s(folder):
-    start, end = folder / "start_epoch.txt", folder / "end_epoch.txt"
-    if not (start.exists() and end.exists()):
+def pilot_task_s(raw, process):
+    """realtime of a main.nf task, from the pilot's own Nextflow trace."""
+    trace = raw / "pilot_trace.txt"
+    if not trace.exists():
         return None
-    return int(end.read_text()) - int(start.read_text())
+    rows = pl.read_csv(trace, separator="\t", infer_schema_length=0).filter(
+        (pl.col("status") == "COMPLETED") & pl.col("name").str.starts_with(process))
+    if rows.is_empty():
+        return None
+    return duration_s(rows["realtime"][-1])
 
 
 LINE_TS = r"^(\d\d/\d\d/\d\d \d\d:\d\d:\d\d)"
@@ -146,9 +151,9 @@ def main():
             rows.append(("proteinannotator", r["step"], r["n_tasks"], r["pilot_wall_s"] / 3600,
                          r["pilot_cpu_h"], r["proteome_cpu_h"], r["proteome_wall_h"]))
 
-    for name, folder, cpus in [("interproscan_full", raw / "interproscan_full", 16),
-                               ("unifire_lite", raw / "unifire", 4)]:
-        wall = epoch_wall_s(folder)
+    for name, process, cpus in [("interproscan_full", "INTERPROSCAN_FULL", 16),
+                                ("unifire_lite", "UNIFIRE_LITE", 4)]:
+        wall = pilot_task_s(raw, process)
         if wall is not None:
             ratio = res_prot / res_pilot
             rows.append((name, name, 1, wall / 3600, wall * cpus / 3600,
