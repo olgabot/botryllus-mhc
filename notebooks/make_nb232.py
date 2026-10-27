@@ -77,10 +77,6 @@ these silently, so section 5 lists them on their own.
 
 code(
     r'''
-import json
-import re
-import urllib.parse
-import urllib.request
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -88,6 +84,8 @@ import numpy as np
 import polars as pl
 
 import pubfig as pf
+from hla_utils import (CLASS_I, KNOWN_IMMUNE_FAMILY_PATTERN, PART_COLOUR, PART_MARKER, HlaParts,
+                       load_immune_genes, with_gene_columns)
 
 pf.use_style()
 pl.Config.set_tbl_rows(60)
@@ -108,20 +106,11 @@ MAX_EVALUE = 10
 STRICT_EVALUE = 1e-3
 EVALUE_CUTOFFS = [10, 1, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5]
 
-DATA_DIR = Path("data")
-UNIPROT_HLA_DIR = DATA_DIR / "uniprot_hla"
 OUT_DIR = Path("232_outputs")
 FIG_DIR = Path("../figures/232")
-for d in (DATA_DIR, UNIPROT_HLA_DIR, OUT_DIR, FIG_DIR):
+for d in (OUT_DIR, FIG_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
-GO_IMMUNE_TSV = DATA_DIR / "go0002376_immune_system_process_human_quickgo.tsv"
-QUICKGO_URL = (
-    "https://www.ebi.ac.uk/QuickGO/services/annotation/downloadSearch?"
-    "goId=GO:0002376&goUsage=descendants&goUsageRelationships=is_a,part_of,occurs_in"
-    "&taxonId=9606&taxonUsage=exact&geneProductType=protein&selectedFields=symbol,goId"
-    "&downloadLimit=2000000"
-)
 
 
 def kmerseek_csv(arm: str) -> Path:
@@ -140,14 +129,9 @@ md(
 
 code(
     r'''
-if not GO_IMMUNE_TSV.exists():
-    req = urllib.request.Request(QUICKGO_URL, headers={"Accept": "text/tsv"})
-    GO_IMMUNE_TSV.write_bytes(urllib.request.urlopen(req, timeout=300).read())
-go_immune = pl.read_csv(GO_IMMUNE_TSV, separator="\t")
-assert go_immune.columns == ["SYMBOL", "GO TERM"], go_immune.columns  # not an outage page
-immune_genes = sorted(set(go_immune["SYMBOL"]))
+immune_genes = load_immune_genes()
 hla_genes_in_go = [g for g in immune_genes if g.startswith("HLA-")]
-print(f"{len(go_immune):_} GO annotations, {len(immune_genes):_} human immune gene symbols, "
+print(f"{len(immune_genes):_} human immune gene symbols, "
       f"{len(hla_genes_in_go)} of them start with HLA- (many are allele names from unreviewed entries)")
 '''
 )
@@ -173,11 +157,7 @@ KEEP_COLUMNS = [
 
 def immune_matches(arm: str) -> tuple[pl.DataFrame, dict]:
     """Matches to immune genes with E <= MAX_EVALUE or E = inf, plus whole-table counts."""
-    lf = pl.scan_csv(kmerseek_csv(arm), infer_schema_length=10_000).with_columns(
-        pl.col("query_name").str.strip_chars(),
-        pl.col("target_name").str.split("|").list.get(6).alias("human_gene"),
-        pl.col("target_name").str.split("|").list.get(7).cast(pl.Int64).alias("human_protein_length"),
-    )
+    lf = with_gene_columns(pl.scan_csv(kmerseek_csv(arm), infer_schema_length=10_000))
     counts = lf.select(
         pl.len().alias("all_matches"),
         (pl.col("region_evalue") <= MAX_EVALUE).sum().alias("matches_e_le_10"),
@@ -288,83 +268,18 @@ md(
 The part of the HLA protein covered by each match comes from UniProt features (signal
 peptide, peptide-binding groove, Ig-like domain, transmembrane helix, cytoplasmic tail).
 Each match is assigned the part that covers most of its human residues. Before using
-UniProt positions on GENCODE proteins, the protein lengths are compared.
+UniProt positions on GENCODE proteins, the protein lengths are compared; where they differ
+(another isoform), the match is placed where its human residues occur in the UniProt
+sequence, and left unplaced if they do not occur there exactly.
 """
 )
 
 code(
     r'''
-CLASS_I = {"HLA-A", "HLA-B", "HLA-C", "HLA-E", "HLA-F", "HLA-G"}
-
-
-def uniprot_hla(gene: str) -> dict:
-    """Reviewed human UniProt entry for one HLA gene, cached as JSON."""
-    path = UNIPROT_HLA_DIR / f"{gene}.json"
-    if not path.exists():
-        query = f"gene_exact:{gene} AND organism_id:9606 AND reviewed:true"
-        url = ("https://rest.uniprot.org/uniprotkb/search?format=json&fields=accession,gene_primary,"
-               "length,ft_transmem,ft_domain,ft_signal,ft_region,ft_topo_dom&query=" + urllib.parse.quote(query))
-        path.write_bytes(urllib.request.urlopen(url, timeout=120).read())
-    results = json.loads(path.read_text())["results"]
-    assert len(results) == 1, (gene, len(results))
-    return results[0]
-
-
-def hla_part_by_residue(entry: dict, gene: str) -> list[str]:
-    """Name of the HLA protein part at each residue (index 0 = residue 1)."""
-    length = entry["sequence"]["length"]
-    part = ["other"] * length
-    groove = {"Alpha-1", "Beta-1"} | ({"Alpha-2"} if gene in CLASS_I else set())
-    # later layers win: groove, then Ig-like, then cytoplasmic, signal and transmembrane
-    layers = [
-        ("peptide-binding groove", lambda f: f["type"] == "Region" and f.get("description") in groove),
-        ("Ig-like domain", lambda f: f["type"] == "Domain" and f.get("description", "").startswith("Ig-like")),
-        ("cytoplasmic tail", lambda f: f["type"] == "Topological domain" and f.get("description") == "Cytoplasmic"),
-        ("signal peptide", lambda f: f["type"] == "Signal"),
-        ("transmembrane helix", lambda f: f["type"] == "Transmembrane"),
-    ]
-    for name, keep in layers:
-        for f in entry["features"]:
-            if keep(f):
-                start, end = f["location"]["start"]["value"], f["location"]["end"]["value"]
-                for i in range(start - 1, end):
-                    part[i] = name
-    return part
-
-
 hla_matches = pl.concat([matches[a].filter(pl.col("is_hla") & ~pl.col("not_extended")) for a in ARMS])
-hla_part_lookup, length_check = {}, []
-for gene in sorted(hla_matches["human_gene"].unique()):
-    entry = uniprot_hla(gene)
-    hla_part_lookup[gene] = hla_part_by_residue(entry, gene)
-    gencode_length = hla_matches.filter(pl.col("human_gene") == gene)["human_protein_length"][0]
-    length_check.append({"human_gene": gene, "uniprot": entry["primaryAccession"],
-                         "uniprot_length": entry["sequence"]["length"], "gencode_length": gencode_length})
-length_check = pl.DataFrame(length_check).with_columns(
-    (pl.col("uniprot_length") == pl.col("gencode_length")).alias("same_length"))
-print(length_check)
-
-
-NOT_MAPPED = "not mapped (GENCODE isoform length differs from UniProt)"
-same_length = dict(zip(length_check["human_gene"], length_check["same_length"]))
-
-
-def main_part(gene: str, target_start: int, target_end: int) -> str:
-    """HLA part covering most residues of a match (target_start 0-based, target_end exclusive)."""
-    if not same_length[gene]:
-        return NOT_MAPPED
-    parts = hla_part_lookup[gene][target_start:target_end]
-    # a tie goes to the part that comes first along the protein, so reruns agree
-    return max(dict.fromkeys(parts), key=parts.count)
-
-
-hla_matches = hla_matches.with_columns(
-    pl.struct("human_gene", "target_start", "target_end")
-    .map_elements(lambda r: main_part(r["human_gene"], r["target_start"], r["target_end"]), return_dtype=pl.Utf8)
-    .alias("hla_part_matched"),
-    pl.when(pl.col("human_gene").is_in(list(CLASS_I))).then(pl.lit("class I")).otherwise(pl.lit("class II"))
-    .alias("hla_class"),
-)
+hla_parts = HlaParts(dict(hla_matches.group_by("human_gene").agg(pl.col("human_protein_length").first()).iter_rows()))
+print(hla_parts.length_check)
+hla_matches = hla_parts.add_columns(hla_matches)
 hla_matches.sort("arm", "region_evalue").write_csv(
     OUT_DIR / "232_hla_matches_evalue_le_10_kmerseek_botryllus_vs_gencode.csv")
 '''
@@ -393,16 +308,6 @@ print(best_per_hla)
 
 code(
     r'''
-PART_COLOUR = {
-    "peptide-binding groove": pf.OKABE_ITO["vermillion"],
-    "Ig-like domain": pf.OKABE_ITO["blue"],
-    "transmembrane helix": pf.OKABE_ITO["orange"],
-    "signal peptide": pf.OKABE_ITO["reddish_purple"],
-    "cytoplasmic tail": pf.OKABE_ITO["bluish_green"],
-    "other": pf.OKABE_ITO["sky_blue"],
-    NOT_MAPPED: pf.GREY,
-}
-PART_MARKER = {part: ("x" if part == NOT_MAPPED else "o") for part in PART_COLOUR}
 assert set(hla_matches["hla_part_matched"]) <= set(PART_COLOUR), set(hla_matches["hla_part_matched"])
 
 gene_order = (best_per_hla.with_columns(pl.col("human_gene").is_in(list(CLASS_I)).alias("class_i"))
@@ -534,11 +439,7 @@ genes, RAG and AIRE.
 
 code(
     r'''
-KNOWN_IMMUNE_FAMILY_PATTERN = (
-    r"^(HLA-|B2M$|TAP[12]$|TAPBP|PSMB(8|9|10)$|TLR\d|NLR|NOD[12]$|C[1-9][A-Z]?\d?$|CF[BDHI]$|MASP|"
-    r"IL\d|IL\d+R|CCL\d|CXCL\d|CCR\d|CXCR\d|IFN[ABGLKWE]|TNF$|TNFSF|TNFRSF|LTA$|LTB$|NFKB|REL[AB]?$|IRF\d|TRAF\d|MYD88|IRAK\d|"
-    r"JAK\d|STAT\d|LCK$|ZAP70|SYK$|BTK$|CD\d|KIR\d|LILR|FCGR|FCER|IG[HKL][VCDJ]|TR[ABGD][VCJ]|RAG[12]$|AIRE$|CARD11$)"
-)
+
 known = matches[MAIN_ARM].filter(~pl.col("not_extended") & pl.col("human_gene").str.contains(KNOWN_IMMUNE_FAMILY_PATTERN))
 best_known = (known.sort("region_evalue").group_by("human_gene", maintain_order=True)
               .agg(pl.len().alias("n_matches"), pl.col("region_evalue").first().alias("best_evalue"),
@@ -595,9 +496,10 @@ human GENCODE v49 canonical proteins.
    proteins match 17 HLA genes, the best at E = 1.0.
 
 3. **The HLA matches are mostly to the transmembrane helix, not the peptide-binding groove.** Of the
-   235 matches, 101 cover mainly the HLA transmembrane helix, 55 the Ig-like domain, 35 the
-   peptide-binding groove, 9 the cytoplasmic tail and 32 could not be placed because the GENCODE
-   protein differs in length from UniProt's (HLA-F, HLA-DQA1, HLA-DQB2). The top HLA-B and HLA-C
+   235 matches, 107 cover mainly the HLA transmembrane helix, 59 the Ig-like domain, 49 the
+   peptide-binding groove, 9 the cytoplasmic tail, 3 another part, and 8 could not be placed
+   (HLA-F and HLA-DQA1: GENCODE's isoform differs from UniProt's and the matched residues do not
+   occur in the UniProt sequence). The strongest groove match has E = 0.94 (g39885.t1 to HLA-DOA). The top HLA-B and HLA-C
    matches pair a run of hydrophobic residues with the HLA membrane helix (`GLIAGVVIAVLLALLVL`
    against `PIVGIVAGLAVLAVVVI`), which any single-pass membrane protein can do.
 
