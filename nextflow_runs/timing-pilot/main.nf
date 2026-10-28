@@ -69,6 +69,7 @@ process PROTEINANNOTATOR {
 
     script:
     def launch = "${params.pilot_dir}/proteinannotator"
+    def extra  = params.pa_extra_config ? "-c ${params.pa_extra_config}" : ''
     """
     ips_data=\$(readlink -f ${ips_dir})/data
     fasta=\$(readlink -f ${fasta})
@@ -80,7 +81,7 @@ process PROTEINANNOTATOR {
     export NXF_OFFLINE=true NXF_OPTS="-Xms1g -Xmx6g" NXF_SINGULARITY_CACHEDIR=${params.pa_img_dir}
     ${params.nextflow_bin} -log ${launch}/nextflow.log run nf-core/proteinannotator \\
         -r ${params.pipeline_commit} -resume -ansi-log false \\
-        -profile singularity -c ${params.pa_config} -c ${projectDir}/pilot.config \\
+        -profile singularity -c ${params.pa_config} -c ${projectDir}/pilot.config ${extra} \\
         --input samplesheet.csv --outdir ${launch}/results -work-dir ${launch}/work \\
         --pfam_db ${params.pa_db_dir}/Pfam-A.38.2.hmm.gz \\
         --funfam_db ${params.pa_db_dir}/funfam-hmm3-v4_3_0.lib.gz \\
@@ -247,6 +248,8 @@ workflow {
     // The FASTA with OX=30301 headers, so UniFIRE can read the taxon from the XML
     PROTEINANNOTATOR(ips, file(params.fasta_ox, checkIfExists: true))
     UNIFIRE_LITE(PROTEINANNOTATOR.out.xml)
-    ESMFOLD(file(params.fasta, checkIfExists: true), file(params.esmfold_weights, checkIfExists: true))
-    FOLDSEEK(ESMFOLD.out.pdb, file(params.foldseek_db_dir, checkIfExists: true))
+    if (!params.skip_fold) {
+        ESMFOLD(file(params.fasta, checkIfExists: true), file(params.esmfold_weights, checkIfExists: true))
+        FOLDSEEK(ESMFOLD.out.pdb, file(params.foldseek_db_dir, checkIfExists: true))
+    }
 }

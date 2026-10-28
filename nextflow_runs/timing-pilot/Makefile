@@ -13,6 +13,9 @@
 #   make pa-progress              # proteinannotator's own progress (a run inside the run)
 #   make running                  # what is queued or running
 #   make collect                  # LAPTOP: copy the traces back and write the timing table
+#   make full-input               # LAPTOP: the renamed proteome to Sherlock
+#   make run-full                 # LOGIN NODE: proteinannotator + UniFIRE on all 45,339 proteins
+#   make watch FULL=1             # (likewise stop, pa-progress) for that run
 #
 # Uses what ../nf-core-proteinannotator staged on Sherlock (`make sherlock-stage` there):
 # Nextflow 25.10.4, the pipeline at its pinned commit, the HMM databases, the images, and
@@ -55,7 +58,7 @@ CURL := curl -L --fail --continue-at - --speed-limit 10240 --speed-time 60 --ret
 # $(1)=destination  $(2)=url. Downloads to .part and renames when whole.
 GET = [ -s $(1) ] || { $(CURL) -o $(1).part $(2) && mv -f $(1).part $(1); }
 
-.PHONY: help sample sherlock-sync check-login stage stub sif run watch pa-progress stop running collect
+.PHONY: help sample sherlock-sync check-login stage stub sif run watch pa-progress stop running collect full-input run-full _run-full
 
 help:
 	@sed -n '1,20p' Makefile
@@ -114,6 +117,16 @@ HEAD_CPUS    ?= 2
 HEAD_MEM     ?= 8G
 HEAD_SESSION ?= timing-pilot
 HEAD_JOBNAME ?= nfdrv-timing-pilot
+# `make run-full` and FULL=1 for watch, stop and pa-progress: the whole proteome, under the
+# 7-day long QOS (s4pred alone is predicted at 35 h; see full_pa.config)
+FULL_DIR := $(SCRATCH)/botryllus-annotation-full
+ifeq ($(FULL),1)
+PILOT        := $(FULL_DIR)
+HEAD_QOS     := long
+HEAD_TIME    := 7-00:00:00
+HEAD_SESSION := annotation-full
+HEAD_JOBNAME := nfdrv-annotation-full
+endif
 HEAD_SUBMIT = HEAD_ACCOUNT=$(SLURM_ACCOUNT) HEAD_PARTITION=$(HEAD_PARTITION) \
               HEAD_QOS=$(HEAD_QOS) HEAD_TIME=$(HEAD_TIME) \
               HEAD_CPUS=$(HEAD_CPUS) HEAD_MEM=$(HEAD_MEM) \
@@ -129,6 +142,25 @@ run: check-login
 	mkdir -p $(PILOT)/launch
 	cd $(PILOT)/launch && export JAVA_HOME=$(SH_JAVA_HOME) PATH=$(SH_JAVA_HOME)/bin:$$PATH && \
 	  $(HEAD_SUBMIT) $(SH_NEXTFLOW) run $(CURDIR)/main.nf -resume
+
+# LAPTOP: the renamed proteome, plain and with OX=30301 headers for UniFIRE, to Sherlock
+full-input: $(PROTEOME_UNIQUE)
+	awk '/^>/{id=substr($$1,2); print ">" id "|" id " OS=Botryllus schlosseri OX=30301"; next} {print}' \
+	  $(PROTEOME_UNIQUE) > $(basename $(PROTEOME_UNIQUE))_unifire.fasta
+	ssh $(SHERLOCK_HOST) 'mkdir -p $$SCRATCH/botryllus-annotation-full/input'
+	rsync -av $(PROTEOME_UNIQUE) $(SHERLOCK_HOST):'$$SCRATCH/botryllus-annotation-full/input/botryllus_unique_names.fasta'
+	rsync -av $(basename $(PROTEOME_UNIQUE))_unifire.fasta \
+	  $(SHERLOCK_HOST):'$$SCRATCH/botryllus-annotation-full/input/botryllus_unique_names_unifire.fasta'
+
+# LOGIN NODE: proteinannotator and UniFIRE on all 45,339 proteins, no ESMFold (full.config)
+run-full: check-login
+	$(MAKE) --no-print-directory _run-full FULL=1
+_run-full:
+	@squeue --me -h -n $(HEAD_JOBNAME) | grep -q . && { echo "$(HEAD_JOBNAME) is already queued"; exit 1; } || true
+	[ -s $(FULL_DIR)/input/botryllus_unique_names_unifire.fasta ] || { echo "run make full-input on the laptop"; exit 1; }
+	mkdir -p $(FULL_DIR)/launch
+	cd $(FULL_DIR)/launch && export JAVA_HOME=$(SH_JAVA_HOME) PATH=$(SH_JAVA_HOME)/bin:$$PATH && \
+	  $(HEAD_SUBMIT) $(SH_NEXTFLOW) run $(CURDIR)/main.nf -c $(CURDIR)/full.config -resume
 
 # LOGIN NODE: main.nf's stub blocks in a 30-minute job on one node (stub_test.config).
 # Checks the wiring, the input paths and that each image starts, without real work.
