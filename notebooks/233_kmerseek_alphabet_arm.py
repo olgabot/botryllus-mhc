@@ -101,7 +101,9 @@ def main() -> None:
         return
     idx = WORK_DIR / f"human_gencode_v49_canonical.{tag}.rocksdb"
     survival = OUT_DIR / "ka_survival" / f"{tag}.csv"
-    retry_survival = OUT_DIR / "ka_survival" / f"{tag}.retry.csv"
+    # one file per retry size: a refused fit at 1,000 sequences must not stop a retry at more
+    retry_name = "retry" if RETRY_KA_QUERIES == 1_000 else f"retry{RETRY_KA_QUERIES}"
+    retry_survival = OUT_DIR / "ka_survival" / f"{tag}.{retry_name}.csv"
     raw = WORK_DIR / f"{tag}.search.csv"
     logs = OUT_DIR / "logs"
     summary = {**arm, "tag": tag, "kmerseek": KMERSEEK}
@@ -129,7 +131,7 @@ def main() -> None:
                 [KMERSEEK, "calibrate", "--target", str(idx), *extension,
                  "--ka-queries", str(RETRY_KA_QUERIES), "--ka-seed", str(KA_SEED),
                  "--ka-survival-out", str(retry_survival)],
-                logs / f"{tag}.calibrate.log")
+                logs / f"{tag}.{retry_name}.calibrate.log")
         fit = fitted(retry_survival)
     summary["fitted"] = fit
 

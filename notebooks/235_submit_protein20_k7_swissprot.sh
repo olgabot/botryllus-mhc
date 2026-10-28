@@ -46,6 +46,21 @@ if [ "${1:-}" = rerun ]; then
     exit 0
 fi
 
+# Recalibrate, 28 Oct 2026. The first rerun (49956388) never calibrated on 19,000 sequences:
+# the arm script skipped calibration because the first try's retry.csv existed. Each retry
+# size now has its own file (retry19000.csv). This reruns the six beside the fallback
+# (separate .noext files and node-local work folders) and makes the filter wait for both:
+#   bash notebooks/235_submit_protein20_k7_swissprot.sh recalibrate <filter job id> <fallback job id>
+if [ "${1:-}" = recalibrate ]; then
+    : "${2:?filter job id}" "${3:?fallback job id}"
+    recal=$(ROW_GROUPS="12,4,13,7,17,14" RETRY_KA_QUERIES=19000 sbatch --parsable --export=ALL \
+        --job-name=235-kmerseek-recal --array=0 --mem=16G --time=02:00:00 \
+        --output=logs/235-kmerseek-recal-%A_%a.out notebooks/233_kmerseek_alphabets.sbatch)
+    scontrol update JobId="$2" Dependency="afterany:$3:$recal"
+    echo "recalibrate $recal; filter $2 now waits for $3 and $recal"
+    exit 0
+fi
+
 # Fallback, 28 Oct 2026 (235_decision_rule.md): after the rerun, any of the six whose E-value
 # fit still failed is searched without extension (NO_EXTEND=1; files end in .noext). The arm
 # script skips an alphabet that has E-values. Same size as the rerun. The filter job is then
