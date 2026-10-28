@@ -117,13 +117,11 @@ HEAD_CPUS    ?= 2
 HEAD_MEM     ?= 8G
 HEAD_SESSION ?= timing-pilot
 HEAD_JOBNAME ?= nfdrv-timing-pilot
-# `make run-full` and FULL=1 for watch, stop and pa-progress: the whole proteome, under the
-# 7-day long QOS (s4pred alone is predicted at 35 h; see full_pa.config)
+# `make run-full` and FULL=1 for watch, stop and pa-progress: the whole proteome. Without
+# s4pred it fits the same 2-day head job as the pilot (see full.config).
 FULL_DIR := $(SCRATCH)/botryllus-annotation-full
 ifeq ($(FULL),1)
 PILOT        := $(FULL_DIR)
-HEAD_QOS     := long
-HEAD_TIME    := 7-00:00:00
 HEAD_SESSION := annotation-full
 HEAD_JOBNAME := nfdrv-annotation-full
 endif

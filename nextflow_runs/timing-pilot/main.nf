@@ -89,7 +89,7 @@ process PROTEINANNOTATOR {
         --metagroot_db ${params.pa_db_dir}/metagroot.hmm.gz \\
         --interproscan_db \$ips_data \\
         --interproscan_applications ${params.interproscan_apps} \\
-        --interproscan_batch_size ${params.interproscan_batch_size}
+        --interproscan_batch_size ${params.interproscan_batch_size} ${params.pa_extra_args}
     cp -r ${launch}/results/pipeline_info \$task_dir/
     cp ${launch}/nextflow.log \$task_dir/proteinannotator.log
     # The pipeline 'ignore's a failed InterProScan batch and still ends "completed", so
