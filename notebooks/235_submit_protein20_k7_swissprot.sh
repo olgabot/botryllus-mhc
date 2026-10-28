@@ -46,6 +46,21 @@ if [ "${1:-}" = rerun ]; then
     exit 0
 fi
 
+# Fallback, 28 Oct 2026 (235_decision_rule.md): after the rerun, any of the six whose E-value
+# fit still failed is searched without extension (NO_EXTEND=1; files end in .noext). The arm
+# script skips an alphabet that has E-values. Same size as the rerun. The filter job is then
+# moved behind it:
+#   bash notebooks/235_submit_protein20_k7_swissprot.sh fallback <rerun job id> <filter job id>
+if [ "${1:-}" = fallback ]; then
+    : "${2:?rerun job id}" "${3:?filter job id}"
+    fallback=$(ROW_GROUPS="12,4,13,7,17,14" NO_EXTEND=1 sbatch --parsable --export=ALL \
+        --job-name=235-kmerseek-noext --array=0 --mem=16G --time=02:00:00 --dependency=afterany:$2 \
+        --output=logs/235-kmerseek-noext-%A_%a.out notebooks/233_kmerseek_alphabets.sbatch)
+    scontrol update JobId="$3" Dependency="afterany:$fallback"
+    echo "fallback $fallback; filter $3 now waits for it"
+    exit 0
+fi
+
 
 # rows of 235_arms.tsv (same order as 233_arms.tsv); ';' separates array tasks
 heavy=$(ROW_GROUPS="12;9" sbatch --parsable --export=ALL --job-name=235-kmerseek-heavy \

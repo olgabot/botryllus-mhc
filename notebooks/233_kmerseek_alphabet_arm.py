@@ -53,6 +53,9 @@ KA_QUERIES, KA_SEED = 200, 1
 # notebook 235 sets RETRY_KA_QUERIES=19000: at its larger k, 1,000 sequences gave too few
 # scored regions for six alphabets
 RETRY_KA_QUERIES = int(os.environ.get("RETRY_KA_QUERIES", "1000"))
+# NO_EXTEND=1: search without extension (exact k-mer runs, region p-values, no E-value fit),
+# for an alphabet whose fit failed; its files end in .noext. See 235_decision_rule.md.
+NO_EXTEND = os.environ.get("NO_EXTEND") == "1"
 MAX_QUERY_PVALUE, MIN_REGION_SCORE = 0.05, 1.3
 MAX_EVALUE = 10.0
 csv.field_size_limit(sys.maxsize)
@@ -83,6 +86,12 @@ def main() -> None:
         arm = list(csv.DictReader(fh, delimiter="\t"))[row_number]
     alphabet, k, penalty, xdrop = arm["alphabet"], arm["ksize"], arm["penalty"], arm["xdrop"]
     tag = f"{alphabet}.k{k}.scaled1.lcremoved"
+    if NO_EXTEND:
+        with_evalues = OUT_DIR / "evalue_le_10" / f"{tag}.evalue_le_10_or_inf.csv.gz"
+        if with_evalues.exists():
+            print(f"{tag}: has E-values ({with_evalues}), no search without extension needed")
+            return
+        tag += ".noext"
     for sub in ("ka_survival", "evalue_le_10", "logs"):
         (OUT_DIR / sub).mkdir(parents=True, exist_ok=True)
     WORK_DIR.mkdir(parents=True, exist_ok=True)
@@ -97,18 +106,22 @@ def main() -> None:
     logs = OUT_DIR / "logs"
     summary = {**arm, "tag": tag, "kmerseek": KMERSEEK}
     extension = ["--extend-mismatch-penalty", penalty, "--extend-xdrop", xdrop]
+    # without extension: the index skips the fit, and the search keeps exact k-mer runs
+    index_fit = ["--ka-queries", "0"] if NO_EXTEND else [
+        *extension, "--ka-queries", str(KA_QUERIES), "--ka-seed", str(KA_SEED), "--ka-survival-out", str(survival)]
+    search_fit = ["--extend-mismatch-penalty", "0"] if NO_EXTEND else [
+        *extension, "--ka-queries", str(KA_QUERIES), "--ka-seed", str(KA_SEED)]
+    summary["extension"] = not NO_EXTEND
 
     if not (idx / "CURRENT").exists():
         summary["index_rc"], summary["index_s"] = run(
             [KMERSEEK, "index", "--input", HUMAN, "--output", str(idx), "--alphabet", alphabet,
-             "--ksize", k, "--scaled", "1", "--remove-low-complexity", *extension,
-             "--ka-queries", str(KA_QUERIES), "--ka-seed", str(KA_SEED),
-             "--ka-survival-out", str(survival)],
+             "--ksize", k, "--scaled", "1", "--remove-low-complexity", *index_fit],
             logs / f"{tag}.index.log")
         if summary["index_rc"] != 0:
             sys.exit(f"{tag}: index failed, see {logs / f'{tag}.index.log'}")
 
-    summary["fitted_first"] = fitted(survival)
+    summary["fitted_first"] = None if NO_EXTEND else fitted(survival)
     fit = summary["fitted_first"]
     if fit is False:
         if fitted(retry_survival) is None:
@@ -123,7 +136,7 @@ def main() -> None:
     if not raw.exists():
         summary["search_rc"], summary["search_s"] = run(
             [KMERSEEK, "search", "--query", QUERY, "--target", str(idx), "--alphabet", alphabet,
-             "--ksize", k, *extension, "--ka-queries", str(KA_QUERIES), "--ka-seed", str(KA_SEED),
+             "--ksize", k, *search_fit,
              "--max-query-pvalue", str(MAX_QUERY_PVALUE), "--min-region-score", str(MIN_REGION_SCORE),
              "--output", str(raw)],
             logs / f"{tag}.search.log")
