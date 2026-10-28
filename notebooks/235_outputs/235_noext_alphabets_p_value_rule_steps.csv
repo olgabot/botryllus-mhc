@@ -1,0 +1,4 @@
+alphabet,ksize,n_immune_matches,n_immune_botryllus_proteins,n_hla_matches,n_hla_botryllus_proteins,n_step1_p_below_threshold,n_step2_groove_or_ig,step3_cutoff,n_step3_more_same_residues_than_chance,n_candidate_botryllus_proteins
+hp_kyte_doolittle2,31,238742,16184,156,116,71,70,0.0007142857142857143,0,0
+gbmr7,23,86714,5298,33,25,6,4,0.0125,0,0
+hsdm17,9,21022,4632,74,61,15,0,0.05,0,0

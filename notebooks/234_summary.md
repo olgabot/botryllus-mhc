@@ -1,0 +1,90 @@
+## Summary and conclusions
+
+Tool for every number below: kmerseek 0.4.0, the 19 alphabets of notebook 233, each at the k
+that carries at least 24 bits per k-mer (protein20 at k = 6), scaled = 1, low-complexity
+k-mers removed. Query: 45,339 FUN Botryllus proteins. Target: 19,429 human GENCODE v49
+canonical proteins.
+
+1. **No FUN protein is an MHC-like candidate under the rule written at the top.** Across the
+   19 alphabets there are 4,981 HLA matches with E ≤ 10, from 1,584 FUN proteins. The 17
+   matches with E ≤ 0.001 come from 9 proteins, all from funcgroups8 (k = 9), and all cover
+   the HLA transmembrane helix. The strongest is FUN018309 (`VIVLAVIVAVAIISIILLLIIVWK`)
+   against the HLA-G helix (`GIVAGLVVLAAVVTGAAVAAVLWR`), E = 0.000075.
+
+   At E ≤ 1 there are 1,247 HLA matches from 450 FUN proteins, and 1,224 of them come from
+   funcgroups8. Only 10 cover the groove or the Ig-like domain. They come from 7 FUN records
+   (6 genes, since FUN028357 has two copies, -T1 and -T2), all from HP alphabets, with E
+   between 0.21 and 0.79. Eight of the ten share no more amino acids than two unrelated
+   sequences would, with Swiss-Prot residue frequencies (0 to 7 of 55 to 91 positions). The
+   other two are FUN016327_flrt2, found by two alphabets: 12 of 94 positions carry the same
+   amino acid where 5.6 are expected (chance 0.010, about 0.1 once the ten matches are
+   counted). Most of the Ig-like matches run on into the HLA membrane helix (human residues
+   245 to 349). The gene names funannotate gave these proteins are flrt2, PIK3AP1, PRR11 and
+   FADF, and three have none; none is an MHC name.
+
+2. **The new gene models change little.** At E ≤ 0.001, summed over the 19 alphabets (a
+   protein found by several alphabets counts once for each), 16,212 FUN proteins have an
+   immune match against 16,040 old proteins (notebook 233), although the FUN proteome has
+   38% fewer proteins. HLA matches at E ≤ 0.001 are
+   funcgroups8 helix matches in both: 9 proteins each, 17 matches against 14. At E ≤ 1,
+   polarity4 and gbmr4 lose their few HLA matches. funcgroups8 rises from 285 to 438 FUN
+   proteins, all of them helix matches.
+
+3. **Well-known immune genes are found strongly through domains every cell has, as in
+   notebook 233.** 59 genes from the hand-picked immune families have E ≤ 0.001 in at least
+   one alphabet:
+   * PSMB8: best E = 5e-46, 12 alphabets.
+   * TRAF3: E = 1e-42, 13 alphabets.
+   * PSMB10, LCK, BTK, NFKB1, SYK and ZAP70: E between 2e-13 and 3e-32.
+
+   These are proteasome, kinase, TRAF and Rel domains. The Rel family (NFKB1, RELA, REL,
+   RELB) is found by 8 to 10 alphabets each.
+
+4. **Unextended matches again look like shared composition.** gbmr7, polarity4, gbmr4,
+   hp_lehninger_hpc3 and hp_kyte_doolittle2 have 90,055, 65,480, 36,262, 5,958 and 71
+   unextended HLA matches (E = inf). 1,755 of them pass the k-mer p-value corrected for the
+   0.88 billion protein pairs each alphabet compares, and 215 have p = 0 exactly. The
+   strongest is the same charged stretch notebook 233 found, now named FUN002657_TAF1
+   (`REKRRIQEQLRRIKRNQEKEK`), matched to the HLA-G α2 helix in gbmr4.
+
+   gbmr7 leaves 523,884,997 of its 523,923,480 matches unextended, as in notebook 233, so it
+   has no HLA match at E ≤ 10, and only 53 FUN proteins match an immune gene at E ≤ 10.
+
+   A k-mer match puts both residues of every position in the same letter class, so two
+   unrelated stretches that match share more amino acids than the plain chance level. With
+   the chance level computed within each class, none of the 1,071 unextended groove or
+   Ig-like matches below the corrected threshold, in any alphabet, shares more amino acids
+   than chance at 0.001 (about 1 such match is expected by chance alone); the smallest
+   chance is 0.005.
+
+5. **kmerseek's best immune-gene match has the gene name funannotate gave for 28% to 71% of
+   named FUN proteins**, depending on the alphabet. Both ends rest on few proteins:
+   hp_lehninger_hpc3 is 5 of 7 (71%) and gbmr4 4 of 14 (29%). Among the 13 alphabets with at
+   least 100 named proteins, agreement runs from 28% (protein20, 535 of 1,891) to 51%
+   (hp_thomas_dill2, 205 of 403). gbmr7 (1 of 1) and dayhoff6 (none named) have too few to
+   count.
+   The differences are mostly paralogues: five tubulins match TUBB4B, DNM1 matches DNM2,
+   and PPP2CB matches PPP2CA. Only matches to human immune genes were kept, so a protein
+   whose own human gene is not on the immune list cannot agree. This is a check of the
+   run, not a test of funannotate.
+
+**Verdict against the rule written at the top:** none of the 19 alphabets gives a FUN
+protein matching an HLA groove or Ig-like domain at E ≤ 0.001. The verdict of notebooks 232
+and 233, no MHC-like candidate from kmerseek, holds for the new gene models.
+
+**What this does not settle.** An MHC fold that has lost sequence similarity needs structure
+comparison (Foldseek against HLA structures), not k-mers. The FUN proteome has whole-protein
+models, so that comparison could now start from it.
+
+Output tables are in `notebooks/234_outputs/`. They hold the same tables as notebook 233,
+plus:
+* FUN names against the best immune-gene match;
+* old and new proteome counts per alphabet;
+* the header changes made before the search.
+
+Figures are in `figures/234/`, `234a` to `234f` as in notebook 233, plus:
+* `234g`: FUN name agreement;
+* `234h`: old against new proteome.
+
+Full immune-match files: `~/data/botryllus/kmerseek-0.4-alphabets-fun/` and
+`$SCRATCH/234-kmerseek-alphabets-fun/` on Sherlock.

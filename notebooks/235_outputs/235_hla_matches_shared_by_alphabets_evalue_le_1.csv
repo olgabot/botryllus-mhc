@@ -1,0 +1,24 @@
+query_name,human_gene,n_alphabets,best_evalue,alphabets,most_common_part
+FUN025104_PIK3AP1,HLA-E,2,0.08871387334487033,"hp_lehninger2, hp_lehninger_c_nonpolar2",Ig-like domain
+FUN016327_flrt2,HLA-B,2,0.12256539895572476,"hp_lehninger2, hp_lehninger_c_nonpolar2",Ig-like domain
+FUN006437_FUN006437,HLA-B,2,0.12684899473393713,"hp_lehninger2, hp_lehninger_c_nonpolar2",transmembrane helix
+FUN025104_PIK3AP1,HLA-A,2,0.22927659756588686,"hp_lehninger2, hp_lehninger_c_nonpolar2",Ig-like domain
+FUN008939_FUN008939,HLA-DQB2,2,0.2741490451926954,"hp_lehninger2, hp_lehninger_c_nonpolar2",transmembrane helix
+FUN014809_PRR11,HLA-B,2,0.30092953989935295,"hp_lehninger2, hp_lehninger_c_nonpolar2",Ig-like domain
+FUN033977_FUN033977,HLA-DOA,2,0.31620510017230563,"hp_lehninger2, hp_lehninger_c_nonpolar2",Ig-like domain
+FUN025104_PIK3AP1,HLA-C,2,0.37537078942960994,"hp_lehninger2, hp_lehninger_c_nonpolar2",Ig-like domain
+FUN019029_FUN019029,HLA-B,1,0.27804337988742495,hp_lehninger2,cytoplasmic tail
+FUN028320_FUN028320,HLA-DQA1,1,0.2817913766557506,hp_lehninger2,not mapped (GENCODE isoform differs from UniProt; residues not found)
+FUN028320_FUN028320,HLA-DQA2,1,0.2853177934325906,hp_lehninger2,Ig-like domain
+FUN000671_NCAPG,HLA-DRA,1,0.3752932472925188,hp_lehninger2,peptide-binding groove
+FUN024102_FUN024102,HLA-F,1,0.577920953951411,hp_lehninger2,transmembrane helix
+FUN006195_FUN006195,HLA-DRB5,1,0.6454480999286831,hp_lehninger_c_nonpolar2,peptide-binding groove
+FUN017495_FUN017495,HLA-B,1,0.6618638410141384,hp_lehninger_c_nonpolar2,cytoplasmic tail
+FUN008939_FUN008939,HLA-DQB1,1,0.7843281488751237,hp_lehninger2,transmembrane helix
+FUN021665_FUN021665,HLA-B,1,0.7956732981051852,hp_lehninger2,transmembrane helix
+FUN003411_FUN003411,HLA-B,1,0.8141013311593658,hp_lehninger_c_nonpolar2,transmembrane helix
+FUN000975_XIAP,HLA-A,1,0.9386426223557961,hp_lehninger2,peptide-binding groove
+FUN003998_FUN003998,HLA-G,1,0.9453375669671062,funcgroups8,transmembrane helix
+FUN044276_SLC5A8,HLA-C,1,0.9707891605276118,hp_pbotc_1st_ed2,transmembrane helix
+FUN039545_FUN039545,HLA-B,1,0.9888044101896961,wwmj5,peptide-binding groove
+FUN008494_FUN008494,HLA-B,1,0.9923925396727331,hp_lehninger2,transmembrane helix
