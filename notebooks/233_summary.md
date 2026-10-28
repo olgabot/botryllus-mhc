@@ -13,11 +13,14 @@ Target: 19,429 human GENCODE v49 canonical proteins.
    At E ≤ 1 there are 842 HLA matches from 302 Botryllus proteins, and 832 of them are to the
    transmembrane helix (805 from funcgroups8). Only 10 cover the groove or the Ig-like domain:
    6 Botryllus proteins, all with E between 0.13 and 0.92, and all from HP alphabets except one
-   gbmr4 match. They share the same residue at 2 to 12 positions out of 33 to 94, about what two
-   unrelated sequences share. They come as near-copies: g42928.t1, g59107.t1 and g67578.t1 carry
-   almost the same 62 residues and all match the same HLA-DOA stretch, and g65873.t1 and
-   g56468.t1 carry the same 94 residues against HLA-B 245-338, where most of the same residues
-   fall in the membrane helix at the end. With 72,617 Botryllus proteins searched, E ≤ 1 lets
+   gbmr4 match. Six of the ten share no more amino acids than two unrelated sequences would, with Swiss-Prot
+   residue frequencies (2 to 5 of 33 to 78 positions). The other four are one 94-residue
+   stretch, carried by g65873.t1 and g56468.t1 and found by two alphabets each: 12 of 94
+   positions carry the same amino acid where 5.6 are expected (chance 0.010, about 0.1 once
+   the ten matches are counted). That stretch runs from the HLA-B Ig-like domain into its
+   membrane helix (human residues 245-338). The matches come as near-copies: g42928.t1,
+   g59107.t1 and g67578.t1 carry almost the same 62 residues and all match the same HLA-DOA
+   stretch. With 72,617 Botryllus proteins searched, E ≤ 1 lets
    each one have about one match by chance, so 10 weak matches are what chance alone gives.
 
 2. **Only funcgroups8 (k = 9) gives HLA matches below E = 0.001, and all 14 are to the HLA

@@ -92,11 +92,13 @@ import polars as pl
 
 import pubfig as pf
 from hla_utils import (CLASS_I, KNOWN_IMMUNE_FAMILY_PATTERN, PART_COLOUR, PART_MARKER, HlaParts,
-                       load_immune_genes, with_gene_columns)
+                       load_immune_genes, match_line, same_residue_vs_chance, same_residue_vs_chance_in_class,
+                       with_gene_columns)
 
 pf.use_style()
 pl.Config.set_tbl_rows(80)
 pl.Config.set_tbl_width_chars(220)
+pl.Config.set_tbl_cols(-1)
 pl.Config.set_fmt_str_lengths(60)
 
 RUN_DIR = Path.home() / "data/botryllus/kmerseek-0.4-alphabets"
@@ -205,7 +207,6 @@ pf.shared_legend(fig, ncol=2, title=f"{TOOL_LINE}\n{QUERY_TARGET_LINE}")
 for ax, letter in zip((ax_a, ax_b), "ab"):
     pf.panel_label(ax, letter)
 pf.save(fig, FIG_DIR / "233a_runs_matches_extended_vs_not_kmerseek_botryllus_vs_gencode_19_alphabets")
-plt.show()
 '''
 )
 
@@ -253,6 +254,17 @@ for a in ALPHABETS:
 counts = pl.DataFrame(rows)
 counts.write_csv(OUT_DIR / "233_immune_hla_counts_by_evalue_kmerseek_botryllus_vs_gencode_19_alphabets.csv")
 print(counts.pivot(on=["gene_set", "max_evalue"], index="alphabet", values="n_botryllus_proteins"))
+
+# all alphabets together: a Botryllus protein counts once, however many alphabets match it
+totals = []
+for gene_set, s in [("all immune genes", immune), ("HLA genes", immune.filter("is_hla"))]:
+    for cutoff in EVALUE_CUTOFFS:
+        hit = s.filter(pl.col("region_evalue") <= cutoff)
+        totals.append({"gene_set": gene_set, "max_evalue": cutoff, "n_matches": len(hit),
+                       "n_botryllus_proteins": hit["query_name"].n_unique(),
+                       "n_matches_funcgroups8": hit.filter(pl.col("alphabet") == "funcgroups8").height})
+print("\nAll alphabets together (a protein counts once, however many alphabets match it):")
+print(pl.DataFrame(totals))
 '''
 )
 
@@ -279,7 +291,6 @@ pf.shared_legend(fig, ncol=4, title=f"{TOOL_LINE}\n{QUERY_TARGET_LINE}")
 for ax, letter in zip(axs, "ab"):
     pf.panel_label(ax, letter)
 pf.save(fig, FIG_DIR / "233b_botryllus_proteins_matching_immune_and_hla_by_evalue_kmerseek_19_alphabets")
-plt.show()
 '''
 )
 
@@ -306,7 +317,7 @@ hla = hla_parts.add_columns(hla)
 assert set(hla["hla_part_matched"]) <= set(PART_COLOUR), set(hla["hla_part_matched"])
 hla.sort("region_evalue").write_csv(OUT_DIR / "233_hla_matches_evalue_le_10_kmerseek_botryllus_vs_gencode_19_alphabets.csv")
 
-best_hla = (hla.sort("region_evalue").group_by("alphabet", maintain_order=True)
+best_hla = (hla.sort("region_evalue", "query_name", "human_gene").group_by("alphabet", maintain_order=True)
             .agg(pl.len().alias("n_hla_matches"), pl.col("query_name").n_unique().alias("n_botryllus_proteins"),
                  pl.col("region_evalue").first().alias("best_evalue"),
                  pl.col("query_name").first().alias("best_botryllus_protein"),
@@ -318,6 +329,8 @@ print(best_hla)
 print(f"\nHLA matches at E <= {STRICT_EVALUE} in any alphabet: {hla.filter(pl.col('region_evalue') <= STRICT_EVALUE).height}")
 print("\nHLA part covered, all alphabets together:")
 print(hla.group_by("hla_part_matched").agg(pl.len().alias("n_matches")).sort("n_matches", descending=True))
+print(hla.filter(pl.col("alphabet") == "funcgroups8").group_by("hla_part_matched")
+      .agg(pl.len().alias("n_funcgroups8_matches")).sort("n_funcgroups8_matches", descending=True))
 '''
 )
 
@@ -346,7 +359,6 @@ alphabet_axis(ax)
 pf.shared_legend(fig, ncol=4, title=f"{TOOL_LINE}; {QUERY_TARGET_LINE}\n"
                  "colour: part of the HLA protein covered by the match (UniProt features)")
 pf.save(fig, FIG_DIR / "233c_hla_matches_evalue_and_part_kmerseek_botryllus_vs_gencode_19_alphabets")
-plt.show()
 '''
 )
 
@@ -362,7 +374,7 @@ The best HLA match of each alphabet, in residues (Botryllus first, human second)
 
 code(
     r'''
-best_rows = hla.sort("region_evalue").group_by("alphabet", maintain_order=True).first()
+best_rows = hla.sort("region_evalue", "query_name", "human_gene").group_by("alphabet", maintain_order=True).first()
 for r in best_rows.sort("region_evalue").iter_rows(named=True):
     print(f"{r['alphabet']:<25} {r['query_name']:<20} vs {r['human_gene']:<9} E = {r['region_evalue']:.3g}  "
           f"human residues {r['target_start'] + 1}-{r['target_end']} ({r['hla_part_matched']})")
@@ -395,7 +407,11 @@ for r in groove_ig_le_1.iter_rows(named=True):
     print(f"\n{r['alphabet']:<25} {r['query_name']:<20} vs {r['human_gene']:<9} E = {r['region_evalue']:.2f}  "
           f"human residues {r['target_start'] + 1}-{r['target_end']} ({r['hla_part_matched']}); "
           f"same residue at {r['n_same_residue']} of {len(r['region_subseq'])} positions")
+    chance = same_residue_vs_chance(r["region_subseq"], r["target_subseq"])
+    print(f"  unrelated sequences with Swiss-Prot residue frequencies: {chance['n_expected']:.1f} expected, "
+          f"chance of {chance['n_same']} or more = {chance['p_at_least']:.2g}")
     print(f"  Botryllus {r['region_subseq'][:100]}")
+    print(f"            {match_line(r['region_subseq'], r['target_subseq'])[:100]}")
     print(f"  human     {r['target_subseq'][:100]}")
 '''
 )
@@ -413,7 +429,7 @@ shared = (hla.filter(pl.col("region_evalue") <= 1)
           .group_by("query_name", "human_gene")
           .agg(pl.col("alphabet").n_unique().alias("n_alphabets"), pl.col("region_evalue").min().alias("best_evalue"),
                pl.col("alphabet").unique().sort().str.join(", ").alias("alphabets"),
-               pl.col("hla_part_matched").mode().first().alias("most_common_part"))
+               pl.col("hla_part_matched").mode().sort().first().alias("most_common_part"))
           .sort("n_alphabets", "best_evalue", "query_name", "human_gene", descending=[True, False, False, False]))
 shared.write_csv(OUT_DIR / "233_hla_matches_shared_by_alphabets_evalue_le_1.csv")
 print(shared.head(20))
@@ -437,7 +453,6 @@ fig.legend(handles=[Patch(color=PART_COLOUR[p], label=p) for p in dict.fromkeys(
            loc="outside upper center", ncol=2,
            title="kmerseek 0.4.0, 19 alphabets\ncolour: HLA part most alphabets matched")
 pf.save(fig, FIG_DIR / "233d_hla_matches_shared_by_alphabets_kmerseek_botryllus_vs_gencode")
-plt.show()
 '''
 )
 
@@ -492,7 +507,6 @@ cbar.set_ticks([-20, -15, -10, -5, -3, -1, 1],
 cbar.set_label("best kmerseek E-value (dark = stronger); light grey = no match at E ≤ 10")
 ax.set_title(f"{TOOL_LINE}\n{QUERY_TARGET_LINE}", fontsize=6, loc="left")
 pf.save(fig, FIG_DIR / "233e_best_evalue_known_immune_genes_by_alphabet_kmerseek_botryllus")
-plt.show()
 '''
 )
 
@@ -539,6 +553,9 @@ if inf_hla is not None:
                       .sort("n_hla_matches", descending=True))
     print(f"\nUnextended HLA matches per alphabet; corrected threshold 0.05 / {N_PAIRS:,} pairs = {threshold:.2g}")
     print(inf_hla_counts)
+    print(f"All alphabets: {inf_hla_counts['n_hla_matches'].sum():,} unextended HLA matches, "
+          f"{inf_hla_counts['n_below_corrected_0.05'].sum():,} below the corrected threshold, "
+          f"{inf_hla_counts['n_p_exactly_0'].sum():,} with p = 0")
     print("\nThe 6 with the most shared k-mers among those below the threshold, in residues:")
     top = (inf_hla.filter(pl.col("region_tail_probability") < threshold)
            .sort("region_n_shared_kmers", "region_tail_probability", descending=[True, False]).head(6))
@@ -547,6 +564,22 @@ if inf_hla is not None:
               f"{r['region_n_shared_kmers']} shared k-mers ({r['hla_part_matched']})")
         print(f"  Botryllus {r['region_subseq'][:80]}")
         print(f"  human     {r['target_subseq'][:80]}")
+
+    # Do the groove and Ig-like matches below the threshold share more amino acids than chance?
+    # A k-mer match puts both residues of each position in the same letter class, so the chance
+    # level is computed within the class (hla_utils.same_residue_vs_chance_in_class).
+    groove_ig_inf = inf_hla.filter((pl.col("region_tail_probability") < threshold)
+                                   & pl.col("hla_part_matched").is_in(["peptide-binding groove", "Ig-like domain"]))
+    tests = pl.DataFrame([{"alphabet": r["alphabet"], "query_name": r["query_name"], "human_gene": r["human_gene"],
+                           "hla_part_matched": r["hla_part_matched"],
+                           **same_residue_vs_chance_in_class(r["region_subseq"], r["target_subseq"], r["alphabet"])}
+                          for r in groove_ig_inf.iter_rows(named=True)])
+    tests = tests.sort("p_at_least", "alphabet", "query_name", "human_gene")
+    print(f"\nGroove or Ig-like matches below the threshold: {tests.height:,}. With the same letter class at a "
+          f"position, unrelated sequences would share the expected count; {(tests['p_at_least'] < 0.001).sum()} "
+          f"share more at chance below 0.001 (about {tests.height * 0.001:.0f} expected by chance alone); "
+          f"smallest chance {tests['p_at_least'].min():.2g}. The 5 with the smallest chance:")
+    print(tests.head(5).with_columns(pl.col("n_expected").round(1), pl.col("p_at_least").round(4)))
 '''
 )
 
@@ -571,7 +604,6 @@ pf.shared_legend(fig, ncol=2, title=f"{TOOL_LINE}\n{QUERY_TARGET_LINE}")
 for ax, letter in zip((ax_a, ax_b), "ab"):
     pf.panel_label(ax, letter)
 pf.save(fig, FIG_DIR / "233f_immune_matches_not_extended_kmerseek_botryllus_vs_gencode_19_alphabets")
-plt.show()
 '''
 )
 

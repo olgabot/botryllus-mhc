@@ -191,6 +191,39 @@ print(whole_table_df)
 '''
 )
 
+code(
+    r'''
+# the same three kinds of match as figure 233a: extended with E <= 10, extended with E > 10, not extended
+KINDS = [("matches_e_le_10", "extended, E ≤ 10", pf.OKABE_ITO["blue"], "o"),
+         ("matches_e_gt_10", "extended, E > 10 (dropped)", pf.GREY, "D"),
+         ("matches_e_inf", "not extended (E = inf)", pf.OKABE_ITO["vermillion"], "s")]
+kinds = whole_table_df.with_columns(
+    (pl.col("all_matches") - pl.col("matches_e_le_10") - pl.col("matches_e_inf")).alias("matches_e_gt_10"))
+print(kinds.select("arm", "all_matches", *[k for k, *_ in KINDS]))
+
+fig, ax = pf.figure(pf.ONE_COLUMN_MM, 40)
+for y, arm in enumerate(ARMS):
+    r = kinds.filter(pl.col("arm") == arm).row(0, named=True)
+    for col, label, colour, marker in KINDS:
+        ax.scatter(r[col], y, color=colour, marker=marker, s=14, zorder=3, label=label if y == 0 else None)
+ax.set_yticks(range(len(ARMS)), [ARM_LABEL[a] for a in ARMS])
+ax.set_ylim(len(ARMS) - 0.5, -0.5)
+ax.grid(axis="y", linewidth=0.3, color="#dddddd")
+ax.set_xscale("log")
+ax.set_xlabel("kmerseek matches, all human genes")
+pf.shared_legend(fig, ncol=1, title=f"{TOOL_LINE}\n{QUERY_TARGET_LINE}")
+pf.save(fig, FIG_DIR / "232e_whole_search_matches_extended_vs_not_kmerseek_botryllus_vs_gencode")
+'''
+)
+
+md(
+    """
+How to read it: one row per search arm, one mark per kind of match, further right is more
+matches. Only the blue matches (E ≤ 10) and the vermillion ones (not extended, reported
+separately in section 5) are kept for the rest of this notebook.
+"""
+)
+
 md(
     """
 ## 3. How many Botryllus proteins match an immune gene, at each E-value cut-off
@@ -248,7 +281,6 @@ ax.set_xlabel("E-value cut-off (matches at or below it kept; stronger to the rig
 ax.set_ylabel("Botryllus proteins with a match")
 pf.shared_legend(fig, ncol=1, title=f"{TOOL_LINE}\n{QUERY_TARGET_LINE}")
 pf.save(fig, FIG_DIR / "232a_botryllus_proteins_matching_human_immune_genes_by_evalue_kmerseek")
-plt.show()
 '''
 )
 
@@ -356,7 +388,6 @@ pf.shared_legend(fig, ncol=4, title=f"{TOOL_LINE}, {ARM_LABEL[MAIN_ARM]}; {QUERY
 for ax, letter in zip((ax_a, ax_b), "ab"):
     pf.panel_label(ax, letter)
 pf.save(fig, FIG_DIR / "232b_hla_matches_evalue_and_part_kmerseek_botryllus_vs_gencode")
-plt.show()
 '''
 )
 
@@ -418,7 +449,6 @@ ax.set_xlabel("corrected k-mer p-value of the region (lower is stronger)")
 ax.set_ylabel("human immune gene")
 ax.set_title(f"{TOOL_LINE}, {ARM_LABEL[MAIN_ARM]}\nmatches with no extended alignment (E = inf)", fontsize=6, loc="left")
 pf.save(fig, FIG_DIR / "232c_immune_matches_not_extended_kmerseek_botryllus_vs_gencode")
-plt.show()
 '''
 )
 
@@ -474,7 +504,6 @@ ax.scatter([], [], color=pf.OKABE_ITO["vermillion"], s=10, label="HLA gene")
 ax.plot([], [], color="black", linewidth=0.5, linestyle=":", label=f"candidate cut-off, E = {STRICT_EVALUE:g}")
 pf.shared_legend(fig, ncol=1, title=f"{TOOL_LINE}, {ARM_LABEL[MAIN_ARM]}\n{QUERY_TARGET_LINE}")
 pf.save(fig, FIG_DIR / "232d_best_match_per_known_immune_gene_kmerseek_botryllus_vs_gencode")
-plt.show()
 '''
 )
 

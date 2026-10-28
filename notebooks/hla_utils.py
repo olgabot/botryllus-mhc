@@ -5,10 +5,14 @@
 - HlaParts: which part of an HLA protein (UniProt features) a match covers
 - KNOWN_IMMUNE_FAMILY_PATTERN: gene-symbol pattern for immune families a biologist names first
 - PART_COLOUR, PART_MARKER: one colour and marker per HLA part, the same in every figure
+- same_residue_vs_chance, same_residue_vs_chance_in_class: how many aligned positions carry the
+  same amino acid, against the number two unrelated sequences would share
+- match_line: a '|' under each position where the two sequences carry the same amino acid
 """
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import urllib.parse
 import urllib.request
@@ -154,3 +158,71 @@ class HlaParts:
             pl.when(pl.col("human_gene").is_in(list(CLASS_I))).then(pl.lit("class I")).otherwise(pl.lit("class II"))
             .alias("hla_class"),
         )
+
+
+# UniProtKB/Swiss-Prot release 2026_03, "6.1 Composition in percent for the complete database"
+# (https://web.expasy.org/docs/relnotes/relstat.html), the numbers notebook 274 of
+# seanome/2024-kmerseek-analysis and 235_plan_arms.py use.
+SWISSPROT_PERCENT = {
+    "A": 8.25, "Q": 3.93, "L": 9.64, "S": 6.66,
+    "R": 5.52, "E": 6.71, "K": 5.79, "T": 5.36,
+    "N": 4.06, "G": 7.07, "M": 2.41, "W": 1.10,
+    "D": 5.46, "H": 2.27, "F": 3.86, "Y": 2.92,
+    "C": 1.38, "I": 5.90, "P": 4.75, "V": 6.85,
+}  # fmt: skip
+SWISSPROT_SHARE = {aa: pct / sum(SWISSPROT_PERCENT.values()) for aa, pct in SWISSPROT_PERCENT.items()}
+# chance that two residues drawn from Swiss-Prot are the same amino acid
+SWISSPROT_SAME_RESIDUE = sum(q * q for q in SWISSPROT_SHARE.values())
+
+
+def alphabet_classes(alphabet: str) -> dict[str, str]:
+    """Letter class of each amino acid in a kmerseek alphabet (partitions in 233_plan_arms.py)."""
+    spec = importlib.util.spec_from_file_location("plan_233", Path(__file__).with_name("233_plan_arms.py"))
+    plan = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(plan)
+    return {aa: cls for cls in plan.CLUSTERS[alphabet] for aa in cls}
+
+
+def match_line(query: str, target: str) -> str:
+    """'|' under each position where the two ungapped sequences carry the same amino acid."""
+    return "".join("|" if a == b else " " for a, b in zip(query, target))
+
+
+def _at_least(k: int, probabilities: list[float]) -> float:
+    """Chance of k or more successes in independent trials with these probabilities."""
+    dist = [1.0]
+    for p in probabilities:
+        nxt = [0.0] * (len(dist) + 1)
+        for i, v in enumerate(dist):
+            nxt[i] += v * (1 - p)
+            nxt[i + 1] += v * p
+        dist = nxt
+    return sum(dist[k:])
+
+
+def same_residue_vs_chance(query: str, target: str) -> dict:
+    """Positions with the same amino acid, against unrelated sequences with Swiss-Prot frequencies.
+
+    Returns n_positions, n_same, n_expected (n_positions x the chance two Swiss-Prot residues
+    are the same amino acid) and p_at_least (chance of n_same or more).
+    """
+    n = min(len(query), len(target))
+    n_same = sum(a == b for a, b in zip(query, target))
+    probs = [SWISSPROT_SAME_RESIDUE] * n
+    return {"n_positions": n, "n_same": n_same, "n_expected": sum(probs), "p_at_least": _at_least(n_same, probs)}
+
+
+def same_residue_vs_chance_in_class(query: str, target: str, alphabet: str) -> dict:
+    """As same_residue_vs_chance, but given that each pair is in the same letter class.
+
+    A kmerseek k-mer match puts both residues of a position in the same class of the alphabet,
+    so unrelated sequences share more amino acids there than the plain chance level says (in
+    gbmr7, G, P, S and T are classes of their own and must be identical). At a position in
+    class c, the chance the target carries the query's amino acid a is share(a) / share(c),
+    with Swiss-Prot shares. Only positions where both residues are in one class count.
+    """
+    classes = alphabet_classes(alphabet)
+    pairs = [(a, b) for a, b in zip(query, target) if a in classes and b in classes and classes[a] == classes[b]]
+    probs = [SWISSPROT_SHARE[a] / sum(SWISSPROT_SHARE[x] for x in classes[a]) for a, _ in pairs]
+    n_same = sum(a == b for a, b in pairs)
+    return {"n_positions": len(pairs), "n_same": n_same, "n_expected": sum(probs), "p_at_least": _at_least(n_same, probs)}
