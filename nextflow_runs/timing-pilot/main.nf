@@ -107,9 +107,15 @@ process PROTEINANNOTATOR {
     """
 }
 
-// UniFIRE's lite image on proteinannotator's InterProScan XML, one batch at a time: UniRule,
-// ARBA and PIRSR. The FASTA headers carry OX=30301, which UniFIRE reads from the XML.
-// Nextflow runs the image with `exec`, so the image's entry script is called by its path.
+// UniFIRE's lite image on proteinannotator's InterProScan XML: UniRule, ARBA and PIRSR. The
+// FASTA headers carry OX=30301, which UniFIRE reads from the XML. Nextflow runs the image
+// with `exec`, so the image's entry script is called by its path.
+//
+// UniFIRE 2026.3 reads the XML namespace InterProScan uses from 5.66 on; 5.59 writes the
+// older one, and UniFIRE then reads every protein without its sequence and stops on each
+// system ("this.md5 is null") while still exiting 0. So the batches are merged into one
+// file under the newer namespace, which also compiles each rule set once instead of once
+// per batch (ARBA's compile took 14 min). Any ERROR line in the log fails the task.
 process UNIFIRE_LITE {
     tag 'pilot500'
     container params.unifire_sif
@@ -122,23 +128,27 @@ process UNIFIRE_LITE {
     path xmls
 
     output:
-    path 'out/*/predictions*'
+    path 'out/predictions*'
     path 'unifire.log'
 
     script:
     """
     set -o pipefail
-    for xml in ${xmls}; do
-        b=\$(basename \$xml .xml)
-        mkdir -p out/\$b
-        /opt/scripts/bin/unifire-workflow.sh -i \$PWD/\$xml -t iprscanxml -o \$PWD/out/\$b 2>&1 | tee -a unifire.log
-    done
+    {
+        echo '<?xml version="1.0" encoding="UTF-8"?>'
+        echo '<protein-matches xmlns="https://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/schemas" interproscan-version="${params.ips_version}">'
+        for xml in ${xmls}; do sed -e '/<protein-matches/d' -e '/<\\/protein-matches>/d' \$xml; done
+        echo '</protein-matches>'
+    } > pilot500.xml
+    mkdir -p out
+    /opt/scripts/bin/unifire-workflow.sh -i \$PWD/pilot500.xml -t iprscanxml -o \$PWD/out 2>&1 | tee unifire.log
+    if grep -q ' ERROR ' unifire.log; then echo 'UniFIRE logged errors' >&2; exit 1; fi
     """
 
     stub:
     """
-    mkdir -p out/pilot500_batch0
-    touch out/pilot500_batch0/predictions_unirule.out unifire.log
+    mkdir -p out
+    touch out/predictions_unirule.out unifire.log
     """
 }
 
