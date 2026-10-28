@@ -240,7 +240,7 @@ def repeated_names(path) {
 workflow {
     [params.fasta, params.fasta_ox].each { fa ->
         def dup = repeated_names(fa)
-        if (dup) error "${fa} repeats ${dup.size()} protein names (${dup.take(3).join(', ')}): run `make sample`"
+        if (dup) error "${fa}: ${dup.size()} protein name(s) used more than once (${dup.take(3).join(', ')}); run `make sample`"
     }
     ips = IPS_DATA(file(params.ips_tarball, checkIfExists: true),
                    file("${params.ips_tarball}.md5", checkIfExists: true)).dir
