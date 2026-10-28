@@ -1,0 +1,17 @@
+alphabet,n_matches,n_botryllus_proteins,n_human_genes,n_hla_matches,n_hla_botryllus_proteins
+hp_lehninger2,4,3,2,0,0
+hp_lehninger_c_nonpolar2,5,5,4,0,0
+hp_pbotc_1st_ed2,129,24,10,0,0
+hp_thomas_dill2,14772,443,72,0,0
+hp_thomas_dill_no_c2,31016,1494,161,0,0
+hp_lehninger_hpc3,13639,5588,1214,141,107
+gbmr4,127531,16744,1318,356,294
+polarity4,79986,5672,916,3699,881
+wwmj5,150,105,39,0,0
+dayhoff6,148485,571,209,0,0
+funcgroups8,0,0,0,0,0
+mmseqs12,1298,17,30,0,0
+sdm12,194,38,20,0,0
+wass14,63,3,9,0,0
+uniprot18,15,2,1,0,0
+protein20,0,0,0,0,0
