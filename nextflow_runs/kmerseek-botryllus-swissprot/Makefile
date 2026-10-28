@@ -33,6 +33,8 @@ SH_LOAD         := export JAVA_HOME=$(SH_JAVA_HOME) PATH=$(SH_JAVA_HOME)/bin:$$P
 # predicted run is under a day (README).
 HEAD_TIME       ?= 2-00:00:00
 HEAD_MEM        ?= 8G
+# Extra sbatch flags, e.g. AFTER='--dependency=afterok:<stub job id>' to start only if the stub passed
+AFTER           ?=
 
 NF_ARGS = -profile sherlock \
 	--query $(SH_BASE)/input/botryllus_unique_names.fasta \
@@ -72,7 +74,7 @@ sherlock-stub:
 	      --outdir $(SH_BASE)/stub/results --index_dir $(SH_BASE)/stub/indexes -work-dir $(SH_BASE)/stub/work'
 
 sherlock-run:
-	sbatch --job-name=kss-head --partition=hns,normal --account=ayeletv \
+	sbatch --job-name=kss-head --partition=hns,normal --account=ayeletv $(AFTER) \
 	  --cpus-per-task=2 --mem=$(HEAD_MEM) --time=$(HEAD_TIME) --output=$(SH_BASE)/logs/head-%j.out \
 	  --wrap='$(SH_LOAD) set -euo pipefail; cd $(SH_BASE); \
 	    $(SH_NEXTFLOW) run $(CURDIR)/main.nf $(NF_ARGS) -resume'
