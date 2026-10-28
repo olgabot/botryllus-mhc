@@ -27,6 +27,26 @@ export ARMS_TSV=$WORK/notebooks/235_arms.tsv
 cd "$WORK"
 mkdir -p logs
 
+# Rerun, 28 Oct 2026. Jobs 49951877_0, 49951880_0 and 49951880_1 failed for six alphabets
+# (gbmr7, hp_kyte_doolittle2, funcgroups8, hp_lehninger_hpc3, hsdm17, sdm12): at these k the
+# E-value fit found too few scored regions even with 1,000 calibration sequences, so the
+# search refused to run. The other 13 finished. The rerun calibrates on 19,000 of the
+# ~19,500 human proteins. Measured on the first try: every task peaked under 9 GB and ran
+# under 17 min for up to 9 alphabets, so one task with 16 GB and 2 h covers the six.
+# Run as: bash notebooks/235_submit_protein20_k7_swissprot.sh rerun
+if [ "${1:-}" = rerun ]; then
+    rerun=$(ROW_GROUPS="12,4,13,7,17,14" RETRY_KA_QUERIES=19000 sbatch --parsable --export=ALL \
+        --job-name=235-kmerseek-rerun --array=0 --mem=16G --time=02:00:00 \
+        --output=logs/235-kmerseek-rerun-%A_%a.out notebooks/233_kmerseek_alphabets.sbatch)
+    immune=$(sbatch --parsable --export=ALL --job-name=235-immune --partition=hns \
+        --cpus-per-task=8 --mem=32G --time=04:00:00 --dependency=afterany:$rerun \
+        --output=logs/235-immune-%j.out \
+        --wrap="bash notebooks/233_filter_immune.sbatch && bash notebooks/233_summarise_inf.sbatch")
+    echo "rerun $rerun immune $immune"
+    exit 0
+fi
+
+
 # rows of 235_arms.tsv (same order as 233_arms.tsv); ';' separates array tasks
 heavy=$(ROW_GROUPS="12;9" sbatch --parsable --export=ALL --job-name=235-kmerseek-heavy \
     --array=0-1 --mem=128G --time=12:00:00 \
@@ -40,3 +60,4 @@ immune=$(sbatch --parsable --export=ALL --job-name=235-immune --partition=hns \
     --output=logs/235-immune-%j.out \
     --wrap="bash notebooks/233_filter_immune.sbatch && bash notebooks/233_summarise_inf.sbatch")
 echo "heavy $heavy light $light immune $immune"
+

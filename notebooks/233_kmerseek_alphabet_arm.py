@@ -7,7 +7,7 @@ Steps, each skipped when its output already exists, so a rerun picks up where it
 1. Index the human proteome: scaled 1, low-complexity k-mers removed, the alphabet's own
    extension penalty and X-drop, and a Karlin-Altschul fit on 200 database sequences
    (the settings of notebook 232's hp_lehninger2 run, PR 10).
-2. If the fit is refused, refit once with 1,000 calibration sequences
+2. If the fit is refused, refit once with 1,000 calibration sequences (RETRY_KA_QUERIES)
    (`kmerseek calibrate`). If that is refused too, the arm has no E-values: every match
    gets E = inf, and summary.json says so.
 3. Search all Botryllus proteins with the filters of notebook 232's run: a match is kept
@@ -49,7 +49,10 @@ QUERY = os.environ["QUERY"]
 OUT_DIR = Path(os.environ["OUT_DIR"])
 WORK_DIR = Path(os.environ["WORK_DIR"])
 
-KA_QUERIES, KA_SEED, RETRY_KA_QUERIES = 200, 1, 1_000
+KA_QUERIES, KA_SEED = 200, 1
+# notebook 235 sets RETRY_KA_QUERIES=19000: at its larger k, 1,000 sequences gave too few
+# scored regions for six alphabets
+RETRY_KA_QUERIES = int(os.environ.get("RETRY_KA_QUERIES", "1000"))
 MAX_QUERY_PVALUE, MIN_REGION_SCORE = 0.05, 1.3
 MAX_EVALUE = 10.0
 csv.field_size_limit(sys.maxsize)
