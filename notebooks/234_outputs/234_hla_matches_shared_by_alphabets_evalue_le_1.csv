@@ -1,6 +1,6 @@
 query_name,human_gene,n_alphabets,best_evalue,alphabets,most_common_part
 FUN016327_flrt2,HLA-B,3,0.0010423601520019058,"funcgroups8, hp_lehninger2, hp_lehninger_c_nonpolar2",Ig-like domain
-FUN028357_FUN028357-T1,HLA-A,2,0.07271643637546339,"funcgroups8, hp_lehninger2",transmembrane helix
+FUN028357_FUN028357-T1,HLA-A,2,0.07271643637546339,"funcgroups8, hp_lehninger2",Ig-like domain
 FUN028357_FUN028357-T1,HLA-F,2,0.08073581697802393,"funcgroups8, hp_lehninger2",Ig-like domain
 FUN028357_FUN028357-T2,HLA-A,2,0.1193043149671385,"funcgroups8, hp_lehninger2",Ig-like domain
 FUN025104_PIK3AP1,HLA-E,2,0.45335802448582485,"hp_lehninger2, hp_lehninger_c_nonpolar2",Ig-like domain

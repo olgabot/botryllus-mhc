@@ -65,6 +65,12 @@ dayhoff6,all immune genes,0.001,0,0,0
 dayhoff6,HLA genes,10.0,0,0,0
 dayhoff6,HLA genes,1.0,0,0,0
 dayhoff6,HLA genes,0.001,0,0,0
+gbmr7,all immune genes,10.0,744,53,272
+gbmr7,all immune genes,1.0,155,25,58
+gbmr7,all immune genes,0.001,3,1,2
+gbmr7,HLA genes,10.0,0,0,0
+gbmr7,HLA genes,1.0,0,0,0
+gbmr7,HLA genes,0.001,0,0,0
 funcgroups8,all immune genes,10.0,65946,8831,1444
 funcgroups8,all immune genes,1.0,19206,3393,956
 funcgroups8,all immune genes,0.001,3268,1129,546

@@ -417,7 +417,7 @@ shared = (hla.filter(pl.col("region_evalue") <= 1)
           .group_by("query_name", "human_gene")
           .agg(pl.col("alphabet").n_unique().alias("n_alphabets"), pl.col("region_evalue").min().alias("best_evalue"),
                pl.col("alphabet").unique().sort().str.join(", ").alias("alphabets"),
-               pl.col("hla_part_matched").mode().first().alias("most_common_part"))
+               pl.col("hla_part_matched").mode().sort().first().alias("most_common_part"))
           .sort("n_alphabets", "best_evalue", "query_name", "human_gene", descending=[True, False, False, False]))
 shared.write_csv(OUT_DIR / "234_hla_matches_shared_by_alphabets_evalue_le_1.csv")
 print(shared.head(20))
