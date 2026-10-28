@@ -6,6 +6,9 @@ of 2026-10-25 (fixed_costs_mini10.tsv), where almost all the time is that cost. 
 
     whole proteome = fixed + (pilot - fixed) * (proteome residues / pilot residues)
 
+for wall time and CPU time alike (CPU time at the CPUs the trace measured in use).
+UniFIRE's fixed cost, mostly compiling its rules, is read from its own log.
+
 proteinannotator drops proteins longer than 5,000 aa (its max_seq_length), so its residue
 count leaves them out. ESMFold is scaled protein by protein instead: each of the 500 stands
 for the 1/500 of the proteome in its length decile, so its fold time counts 45,339 / 500
@@ -67,31 +70,68 @@ def proteinannotator(raw, ratio):
         .agg(
             n_tasks=pl.len(),
             pilot_wall_s=pl.col("realtime_s").max(),
+            pilot_task_s=pl.col("realtime_s").sum(),
             pilot_cpu_h=(pl.col("realtime_s") * pl.col("cpu_frac")).sum() / 3600,
         )
         .join(fixed, on="step", how="left")
         .with_columns(pl.col("fixed_s").fill_null(0.0))
         .with_columns(
-            proteome_cpu_h=pl.col("pilot_cpu_h") * ratio,
-            # one task over the whole proteome (hmmsearch, s4pred run as one task)
-            proteome_wall_h=(pl.col("fixed_s")
-                             + (pl.col("pilot_wall_s") - pl.col("fixed_s")).clip(0) * ratio) / 3600,
+            # CPUs in use per second of the step, from the trace's %cpu
+            cpus_used=(pl.col("pilot_cpu_h") * 3600 / pl.col("pilot_task_s")).fill_nan(0.0),
+            # The fixed cost is paid once per step (the steps with one are single tasks);
+            # only the rest grows with the residues
+            proteome_task_s=pl.col("fixed_s")
+            + (pl.col("pilot_task_s") - pl.col("fixed_s")).clip(0) * ratio,
         )
-        .sort("proteome_wall_h", descending=True)
+        .with_columns(
+            proteome_cpu_h=pl.col("proteome_task_s") * pl.col("cpus_used") / 3600,
+            # one task over the whole proteome (hmmsearch, s4pred run as one task); a step
+            # run in batches (InterProScan) has no single-task time
+            proteome_wall_h=pl.when(pl.col("n_tasks") == 1)
+            .then(pl.col("proteome_task_s") / 3600)
+            .otherwise(None),
+        )
+        .drop("proteome_task_s")
+        .sort("proteome_cpu_h", descending=True)
     )
     return steps
 
 
-def pilot_task_s(raw, process):
-    """realtime of a main.nf task, from the pilot's own Nextflow trace."""
+def pilot_task(raw, process):
+    """realtime (s) and CPUs in use of a main.nf task, from the pilot's own Nextflow trace."""
     trace = raw / "pilot_trace.txt"
     if not trace.exists():
-        return None
+        return None, None
     rows = pl.read_csv(trace, separator="\t", infer_schema_length=0).filter(
         (pl.col("status") == "COMPLETED") & pl.col("name").str.starts_with(process))
     if rows.is_empty():
-        return None
-    return duration_s(rows["realtime"][-1])
+        return None, None
+    return duration_s(rows["realtime"][-1]), float(rows["%cpu"][-1].rstrip("%")) / 100
+
+
+UNIFIRE_TS = r"^(\d\d:\d\d:\d\d\.\d{3}) INFO"
+
+
+def unifire_protein_s(log):
+    """Seconds UniFIRE spent on the proteins themselves.
+
+    Each rule set (UniRule, ARBA, PIRSR) starts the JVM and compiles its rules before it
+    reads a protein: about 13 min for ARBA, the same for 100 proteins or 45,000. The part
+    that grows with the proteins runs from "Processing N facts" to "Done processing facts",
+    once per chunk of 500 proteins.
+    """
+    total, start = 0.0, None
+    for line in log.read_text().splitlines():
+        ts = re.match(UNIFIRE_TS, line)
+        if not ts:
+            continue
+        t = datetime.strptime(ts.group(1), "%H:%M:%S.%f")
+        if "Processing" in line and "facts for" in line:
+            start = t
+        elif "Done processing facts" in line and start is not None:
+            total += (t - start).total_seconds() % 86400  # a chunk can cross midnight
+            start = None
+    return total
 
 
 LINE_TS = r"^(\d\d/\d\d/\d\d \d\d:\d\d:\d\d)"
@@ -152,14 +192,21 @@ def main():
                          r["pilot_cpu_h"], r["proteome_cpu_h"], r["proteome_wall_h"]))
 
     # InterProScan runs inside proteinannotator, so its time is in that pipeline's rows.
+    # UniFIRE reads proteinannotator's output, so it sees the same proteins (<= 5,000 aa);
+    # only its time on the proteins grows, the rule compile is paid once.
+    wall, cpus = pilot_task(raw, "UNIFIRE_LITE")
+    log = raw / "unifire_lite" / "unifire.log"
+    if wall is not None and log.exists():
+        protein_s = unifire_protein_s(log)
+        whole = wall - protein_s + protein_s * res_prot_pa / pilot_pa
+        rows.append(("unifire_lite", "unifire_lite", 1, wall / 3600, wall * cpus / 3600,
+                     whole * cpus / 3600, whole / 3600))
     # Foldseek searches the 500 ESMFold structures, so it scales with residues too.
-    for name, process, cpus in [("unifire_lite", "UNIFIRE_LITE", 4),
-                                ("foldseek_afdb_swissprot", "FOLDSEEK", 16)]:
-        wall = pilot_task_s(raw, process)
-        if wall is not None:
-            ratio = res_prot / res_pilot
-            rows.append((name, name, 1, wall / 3600, wall * cpus / 3600,
-                         wall * cpus * ratio / 3600, wall * ratio / 3600))
+    wall, cpus = pilot_task(raw, "FOLDSEEK")
+    if wall is not None:
+        ratio = res_prot / res_pilot
+        rows.append(("foldseek_afdb_swissprot", "foldseek_afdb_swissprot", 1, wall / 3600,
+                     wall * cpus / 3600, wall * cpus * ratio / 3600, wall * ratio / 3600))
 
     per_protein, esm = esmfold(raw, n_prot, n_pilot)
     if per_protein is not None:

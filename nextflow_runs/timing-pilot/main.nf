@@ -225,7 +225,23 @@ process FOLDSEEK {
     """
 }
 
+// proteinannotator removes duplicates by name, keeping one protein per name without an
+// error, and ESMFold names each structure file after its protein. So stop before any task
+// if a name repeats; `make sample` writes the FASTAs from bin/unique_names.py's output.
+def repeated_names(path) {
+    file(path, checkIfExists: true).readLines()
+        .findAll { it.startsWith('>') }
+        .collect { it.substring(1).split(/[\s|]/)[0] }
+        .countBy { it }
+        .findAll { name, n -> n > 1 }
+        .keySet()
+}
+
 workflow {
+    [params.fasta, params.fasta_ox].each { fa ->
+        def dup = repeated_names(fa)
+        if (dup) error "${fa} repeats ${dup.size()} protein names (${dup.take(3).join(', ')}): run `make sample`"
+    }
     ips = IPS_DATA(file(params.ips_tarball, checkIfExists: true),
                    file("${params.ips_tarball}.md5", checkIfExists: true)).dir
     // The FASTA with OX=30301 headers, so UniFIRE can read the taxon from the XML

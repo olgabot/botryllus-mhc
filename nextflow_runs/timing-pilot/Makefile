@@ -27,6 +27,7 @@ BRANCH         ?= $(shell git rev-parse --abbrev-ref HEAD)
 SHERLOCK_CLONE ?= $$SCRATCH/botryllus-mhc-$(notdir $(BRANCH))
 
 PROTEOME   ?= $(HOME)/data/botryllus/botryllus_new_genome_protein.fasta
+PROTEOME_UNIQUE ?= $(HOME)/data/botryllus/botryllus_new_genome_protein_unique_names.fasta
 N_PROTEINS ?= 500
 SAMPLE     := botryllus_pilot500.fasta
 SAMPLE_OX  := botryllus_pilot500_unifire.fasta
@@ -59,8 +60,13 @@ GET = [ -s $(1) ] || { $(CURL) -o $(1).part $(2) && mv -f $(1).part $(1); }
 help:
 	@sed -n '1,20p' Makefile
 
-sample:
-	python3 -I bin/sample_by_length.py $(PROTEOME) $(N_PROTEINS) $(SAMPLE) botryllus_pilot500_lengths.tsv
+# The proteome reuses names; proteinannotator would keep one protein per name. So every
+# step reads this copy, where each protein has its own name. The full run uses it too.
+$(PROTEOME_UNIQUE): $(PROTEOME) bin/unique_names.py
+	python3 -I bin/unique_names.py $(PROTEOME) $@ botryllus_renamed_proteins.tsv
+
+sample: $(PROTEOME_UNIQUE)
+	python3 -I bin/sample_by_length.py $(PROTEOME_UNIQUE) $(N_PROTEINS) $(SAMPLE) botryllus_pilot500_lengths.tsv
 	awk '/^>/{id=substr($$1,2); print ">" id "|" id " OS=Botryllus schlosseri OX=30301"; next} {print}' \
 	  $(SAMPLE) > $(SAMPLE_OX)
 
@@ -172,4 +178,4 @@ collect:
 	  --exclude='*' \
 	  $(SHERLOCK_HOST):'$$SCRATCH/botryllus-annotation-timing-pilot/results/' results/raw/
 	rsync -av $(SHERLOCK_HOST):'$$SCRATCH/botryllus-annotation-timing-pilot/pipeline_info/pilot_trace.txt' results/raw/
-	$(PYTHON) -I bin/scale_timings.py results/raw botryllus_pilot500_lengths.tsv $(PROTEOME) results
+	$(PYTHON) -I bin/scale_timings.py results/raw botryllus_pilot500_lengths.tsv $(PROTEOME_UNIQUE) results
