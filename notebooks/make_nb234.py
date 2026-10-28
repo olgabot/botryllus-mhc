@@ -464,7 +464,7 @@ best_known = known.group_by("human_gene", "alphabet").agg(pl.col("region_evalue"
 strong_genes = (best_known.filter(pl.col("best_evalue") <= STRICT_EVALUE).group_by("human_gene")
                 .agg(pl.col("best_evalue").min().alias("best_any"), pl.len().alias("n_alphabets_strict"))
                 .sort("best_any"))
-table = (best_known.filter(pl.col("human_gene").is_in(strong_genes["human_gene"]))
+table = (best_known.filter(pl.col("human_gene").is_in(strong_genes["human_gene"].implode()))
          .pivot(on="alphabet", index="human_gene", values="best_evalue")
          .join(strong_genes, on="human_gene").sort("best_any"))
 table = table.select("human_gene", "best_any", "n_alphabets_strict", *[a for a in ALPHABETS if a in table.columns])
@@ -588,7 +588,9 @@ own similarity search. For each named Botryllus protein with an immune match at 
 take its best match in each alphabet and ask whether the human gene has the same name. This
 checks the run: alphabets that find real homologues should agree with funannotate often.
 Names differ for paralogues (a Botryllus protein named after one family member can match
-another best), so agreement well below 100% is expected.
+another best), so agreement well below 100% is expected. Only matches to human immune genes
+were kept on Sherlock, so "best match" here means the best immune-gene match: a protein whose
+same-named human gene is not on the immune list cannot agree.
 """
 )
 
@@ -621,7 +623,7 @@ for a in ALPHABETS:
     else:
         ax_a.scatter(ZERO_X, Y_OF[a], color=pf.GREY, marker="x", s=10, linewidths=0.6, zorder=2)
         ax_b.scatter(0, Y_OF[a], color=pf.GREY, marker="x", s=10, linewidths=0.6, zorder=2)
-ax_a.scatter([], [], color=pf.OKABE_ITO["blue"], s=12, label="alphabet")
+ax_a.scatter([], [], color=pf.OKABE_ITO["blue"], s=12, label="one alphabet")
 ax_a.scatter([], [], color=pf.GREY, marker="x", s=10, linewidths=0.6, label="no named protein at E ≤ 0.001")
 ax_a.set_xscale("log")
 top = max(agree["n_named_botryllus_proteins"].max(), 1) * 3
