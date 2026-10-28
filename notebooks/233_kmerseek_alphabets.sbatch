@@ -56,8 +56,10 @@ N_TASKS=4
 # ROW_GROUPS, if set, gives each array task its own rows of 233_arms.tsv: groups split by
 # ';', rows by ','. Task t runs group t. Unset: task t runs rows t, t+4, t+8, ...
 ROW_GROUPS=${ROW_GROUPS:-}
+# ARMS_TSV, if set, is the table of arms to run (notebook 235: 235_arms.tsv).
+export ARMS_TSV=${ARMS_TSV:-$SCRIPTS/233_arms.tsv}
 
-for f in "$KMERSEEK" "$HUMAN" "$QUERY" "$SCRIPTS/233_arms.tsv" "$SCRIPTS/233_kmerseek_alphabet_arm.py"; do
+for f in "$KMERSEEK" "$HUMAN" "$QUERY" "$ARMS_TSV" "$SCRIPTS/233_kmerseek_alphabet_arm.py"; do
     [ -s "$f" ] || { echo "233: missing input $f" >&2; exit 2; }
 done
 
@@ -66,7 +68,7 @@ module load gcc/14.2.0 python/3.12.1
 "$KMERSEEK" --version
 df -h "$L_SCRATCH"
 
-n_rows=$(( $(wc -l < "$SCRIPTS/233_arms.tsv") - 1 ))
+n_rows=$(( $(wc -l < "$ARMS_TSV") - 1 ))
 if [ -n "$ROW_GROUPS" ]; then
     IFS=';' read -ra groups <<< "$ROW_GROUPS"
     IFS=',' read -ra rows <<< "${groups[$SLURM_ARRAY_TASK_ID]:?no row group for task $SLURM_ARRAY_TASK_ID}"

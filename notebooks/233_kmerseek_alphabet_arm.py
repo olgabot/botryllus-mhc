@@ -24,7 +24,8 @@ Standard library only (Sherlock's python module has no polars).
 Usage:
     233_kmerseek_alphabet_arm.py <row number in 233_arms.tsv, 0 = first arm>
 Environment: KMERSEEK (binary), HUMAN (target FASTA), QUERY (Botryllus FASTA), OUT_DIR,
-WORK_DIR (scratch space for the index and the full search CSV).
+WORK_DIR (scratch space for the index and the full search CSV), and optionally ARMS_TSV
+(the table of arms; default 233_arms.tsv next to this script).
 """
 
 from __future__ import annotations
@@ -40,7 +41,8 @@ import sys
 import time
 from pathlib import Path
 
-ARMS_TSV = Path(__file__).with_name("233_arms.tsv")
+# notebook 235 runs the same arms from its own table (235_arms.tsv)
+ARMS_TSV = Path(os.environ.get("ARMS_TSV") or Path(__file__).with_name("233_arms.tsv"))
 KMERSEEK = os.environ["KMERSEEK"]
 HUMAN = os.environ["HUMAN"]
 QUERY = os.environ["QUERY"]
