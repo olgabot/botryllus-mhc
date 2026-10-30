@@ -39,10 +39,11 @@ AFTER           ?=
 NF_ARGS = -profile sherlock \
 	--query $(SH_BASE)/input/botryllus_unique_names.fasta \
 	--swissprot_fasta $(SH_BASE)/input/uniprot_sprot_2026_03.fasta.gz \
+	--search_resources $(SH_BASE)/measured/search_resources.tsv \
 	--outdir $(SH_BASE)/results --index_dir $(SH_BASE)/indexes \
 	-work-dir $(SH_BASE)/work
 
-.PHONY: sherlock-sync sherlock-inputs sherlock-stub sherlock-run sherlock-status pull plan
+.PHONY: sherlock-sync sherlock-inputs sherlock-stub sherlock-run sherlock-status pull plan measure-resources
 
 plan:
 	python3 bin/plan_pairs.py
@@ -73,7 +74,15 @@ sherlock-stub:
 	      --swissprot_fasta $(SH_BASE)/input/uniprot_sprot_2026_03.fasta.gz \
 	      --outdir $(SH_BASE)/stub/results --index_dir $(SH_BASE)/stub/indexes -work-dir $(SH_BASE)/stub/work'
 
-sherlock-run:
+# Save trace history before Nextflow overwrites its current trace. Recompute asks each launch.
+measure-resources:
+	mkdir -p $(SH_BASE)/measured/history
+	@if [ -f $(SH_BASE)/results/pipeline_info/trace.txt ]; then \
+	  install -m 644 $(SH_BASE)/results/pipeline_info/trace.txt $(SH_BASE)/measured/history/trace-$$(date +%Y%m%dT%H%M%S).tsv; fi
+	python3 bin/measure_resources.py --baseline assets/search_resources.tsv \
+	  --history $(SH_BASE)/measured/history --output $(SH_BASE)/measured/search_resources.tsv
+
+sherlock-run: measure-resources
 	sbatch --job-name=kss-head --partition=hns,normal --account=ayeletv $(AFTER) \
 	  --cpus-per-task=2 --mem=$(HEAD_MEM) --time=$(HEAD_TIME) --output=$(SH_BASE)/logs/head-%j.out \
 	  --wrap='$(SH_LOAD) set -euo pipefail; cd $(SH_BASE); \
