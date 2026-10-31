@@ -226,6 +226,128 @@ process FOLDSEEK {
     """
 }
 
+// s4pred 1.2.1, the image and options nf-core/proteinannotator uses, outside that pipeline
+// (full.config). proteinannotator runs every protein in one task: about 39 h on 12 CPUs for
+// the whole proteome (the pilot took 25 min 36 s for 186,450 residues), more than its 46 h
+// task limit allows with margin, and a 7-day job waited about a day to start. s4pred
+// predicts each protein on its own, so here the proteins are dealt into chunks of about
+// equal total length, one job each. All 45,339 proteins go in, including the 50 over
+// 5,000 aa that proteinannotator drops.
+process S4PRED_SPLIT {
+    tag "${params.s4pred_chunks} chunks"
+    container params.s4pred_sif
+    cpus 1
+    memory '2 GB'
+    time '30m'
+
+    input:
+    path fasta
+
+    output:
+    path 'chunk_*.fasta'
+
+    script:
+    """
+    #!/usr/bin/env python3
+    import heapq
+    records, name, seq = [], None, []
+    for line in open("${fasta}"):
+        if line.startswith(">"):
+            if name: records.append((name, "".join(seq)))
+            name, seq = line[1:].split()[0], []
+        else:
+            seq.append(line.strip().replace("*", ""))
+    records.append((name, "".join(seq)))
+    # Longest first, each to the chunk with the fewest residues so far
+    heap = [(0, i, []) for i in range(${params.s4pred_chunks})]
+    for name, seq in sorted(records, key=lambda r: -len(r[1])):
+        total, i, chunk = heapq.heappop(heap)
+        chunk.append((name, seq))
+        heapq.heappush(heap, (total + len(seq), i, chunk))
+    for total, i, chunk in heap:
+        with open(f"chunk_{i:03d}.fasta", "w") as out:
+            out.writelines(f">{n}\\n{s}\\n" for n, s in chunk)
+    print(len(records), "proteins in", len(heap), "chunks of", min(h[0] for h in heap), "-", max(h[0] for h in heap), "residues")
+    """
+
+    stub:
+    """
+    printf '>a\\nMKV\\n' > chunk_000.fasta
+    """
+}
+
+// One chunk. s4pred's standard output has no protein names, so it writes one .ss2 file per
+// protein, and the task turns them into one table: protein, position, residue, predicted
+// state (C coil, H helix, E strand) and the three probabilities. And one FASTA-style file
+// with each protein's state string under its sequence.
+process S4PRED {
+    tag "${chunk.baseName}"
+    container params.s4pred_sif
+    cpus 12
+    memory '8 GB'
+    time '5h'
+
+    input:
+    path chunk
+
+    output:
+    path "${chunk.baseName}.s4pred.tsv.gz", emit: tsv
+    path "${chunk.baseName}.s4pred.ss.fasta", emit: ss
+
+    script:
+    """
+    set -o pipefail
+    mkdir ss2
+    run_model --outfmt ss2 --threads ${task.cpus} --save-files --outdir ss2 ${chunk} > /dev/null
+    want=\$(grep -c '^>' ${chunk})
+    got=\$(ls ss2 | wc -l)
+    [ "\$got" -eq "\$want" ] || { echo "s4pred wrote \$got of \$want proteins" >&2; exit 1; }
+    for f in ss2/*.ss2; do
+        p=\$(basename "\$f" .ss2)
+        awk -v p="\$p" 'NF == 6 && \$1 ~ /^[0-9]+\$/ {print p"\\t"\$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t"\$5"\\t"\$6}' "\$f"
+    done | gzip > ${chunk.baseName}.s4pred.tsv.gz
+    for f in ss2/*.ss2; do
+        p=\$(basename "\$f" .ss2)
+        awk -v p="\$p" 'NF == 6 && \$1 ~ /^[0-9]+\$/ {s = s \$2; t = t \$3} END {print ">"p; print s; print t}' "\$f"
+    done > ${chunk.baseName}.s4pred.ss.fasta
+    """
+
+    stub:
+    """
+    echo | gzip > ${chunk.baseName}.s4pred.tsv.gz
+    touch ${chunk.baseName}.s4pred.ss.fasta
+    """
+}
+
+process S4PRED_MERGE {
+    tag 'all'
+    cpus 1
+    memory '2 GB'
+    time '1h'
+
+    input:
+    path tsvs
+    path ss
+
+    output:
+    path 's4pred.tsv.gz'
+    path 's4pred_ss.fasta.gz'
+
+    script:
+    """
+    set -o pipefail
+    { printf 'protein\\tposition\\tresidue\\tstate\\tp_coil\\tp_helix\\tp_strand\\n' | gzip; cat ${tsvs}; } > s4pred.tsv.gz
+    cat ${ss} | gzip > s4pred_ss.fasta.gz
+    zcat s4pred_ss.fasta.gz | grep -c '^>'
+    """
+
+    stub:
+    """
+    echo | gzip > s4pred.tsv.gz
+    echo | gzip > s4pred_ss.fasta.gz
+    """
+}
+
 // proteinannotator removes duplicates by name, keeping one protein per name without an
 // error, and ESMFold names each structure file after its protein. So stop before any task
 // if a name repeats; `make sample` writes the FASTAs from bin/unique_names.py's output.
@@ -248,6 +370,11 @@ workflow {
     // The FASTA with OX=30301 headers, so UniFIRE can read the taxon from the XML
     PROTEINANNOTATOR(ips, file(params.fasta_ox, checkIfExists: true))
     UNIFIRE_LITE(PROTEINANNOTATOR.out.xml)
+    if (params.run_s4pred) {
+        chunks = S4PRED_SPLIT(file(params.fasta, checkIfExists: true)).flatten()
+        S4PRED(chunks)
+        S4PRED_MERGE(S4PRED.out.tsv.collect(), S4PRED.out.ss.collect())
+    }
     if (!params.skip_fold) {
         ESMFOLD(file(params.fasta, checkIfExists: true), file(params.esmfold_weights, checkIfExists: true))
         FOLDSEEK(ESMFOLD.out.pdb, file(params.foldseek_db_dir, checkIfExists: true))
