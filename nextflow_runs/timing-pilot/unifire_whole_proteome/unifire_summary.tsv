@@ -1,0 +1,5 @@
+rule_set	proteins	predictions	proteins_sent	percent
+any	19001	231595	45289	42.0
+ARBA	16372	145540	45289	36.2
+UniRule	11575	78980	45289	25.6
+PIRSR	1069	7075	45289	2.4

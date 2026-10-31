@@ -146,3 +146,5 @@ nextflow_runs/**/*.fasta
 _*results
 
 nextflow_runs/*/test_results/
+# make collect output; the final tables get committed by name
+nextflow_runs/timing-pilot/results/
