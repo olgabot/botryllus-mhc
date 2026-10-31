@@ -1,0 +1,39 @@
+alphabet	ksize	protein20_k	measured_chunks	measured_max_min	peak_basis_gb	memory_gb	time_h	basis
+protein20	6	6	NA	NA	84.4	112	2	not measured; 2 x peak at k7 (k6/k7-equivalent peaks measured 1.5-1.9x)
+dayhoff6	12	6	NA	NA	60.8	80	2	not measured; peak at k11 (largest over 5 species), smaller k needs more
+hp_lehninger2	25	6	23	10.8	45.5	64	2	largest of 23 chunk peaks at this k
+hp_thomas_dill2	26	6	23	16.0	60.9	80	2	largest of 23 chunk peaks at this k
+hp_kyte_doolittle2	27	6	23	19.3	71.3	96	2	largest of 23 chunk peaks at this k
+hp_thomas_dill_no_c2	26	6	23	3.8	6.6	32	2	largest of 23 chunk peaks at this k
+hp_lehninger_c_nonpolar2	25	6	23	13.6	45.9	64	2	largest of 23 chunk peaks at this k
+hp_lehninger_hpc3	24	6	NA	NA	56.7	72	2	not measured; 1.3 x peak at k25 (largest over 5 species)
+hp_pbotc_1st_ed2	25	6	23	13.8	46.1	64	2	largest of 23 chunk peaks at this k
+gbmr4	19	6	NA	NA	82.6	104	2	not measured; 2 x peak at k22 (k6/k7-equivalent peaks measured 1.5-1.9x)
+polarity4	16	6	NA	NA	63.8	80	2	not measured; 1.3 x peak at k17 (largest over 5 species)
+wwmj5	12	6	NA	NA	50.0	64	2	not measured; peak at k11 (largest over 5 species), smaller k needs more
+gbmr7	20	6	NA	NA	58.0	80	2	not measured; 1.3 x peak at k21 (largest over 5 species)
+funcgroups8	11	6	23	17.5	52.0	72	2	largest of 23 chunk peaks at this k
+sdm12	9	6	23	18.7	54.4	72	2	largest of 23 chunk peaks at this k
+mmseqs12	8	6	23	19.7	51.5	72	2	largest of 23 chunk peaks at this k
+wass14	8	6	23	11.4	47.4	64	2	largest of 23 chunk peaks at this k
+hsdm17	8	6	23	13.6	50.6	64	2	largest of 23 chunk peaks at this k
+uniprot18	7	6	23	15.0	51.4	72	2	largest of 23 chunk peaks at this k
+protein20	7	7	23	10.6	42.2	56	2	largest of 23 chunk peaks at this k
+dayhoff6	14	7	NA	NA	46.6	64	2	not measured; peak at k13 (largest over 5 species), smaller k needs more
+hp_lehninger2	29	7	23	9.5	29.0	40	2	largest of 23 chunk peaks at this k
+hp_thomas_dill2	30	7	23	8.3	39.5	56	2	largest of 23 chunk peaks at this k
+hp_kyte_doolittle2	31	7	23	12.7	47.9	64	2	largest of 23 chunk peaks at this k
+hp_thomas_dill_no_c2	30	7	23	6.3	12.6	32	2	largest of 23 chunk peaks at this k
+hp_lehninger_c_nonpolar2	29	7	23	9.2	30.2	40	2	largest of 23 chunk peaks at this k
+hp_lehninger_hpc3	28	7	NA	NA	37.7	48	2	not measured; peak at k27 (largest over 5 species), smaller k needs more
+hp_pbotc_1st_ed2	29	7	23	10.8	30.4	40	2	largest of 23 chunk peaks at this k
+gbmr4	22	7	23	9.3	41.3	56	2	largest of 23 chunk peaks at this k
+polarity4	19	7	23	9.2	31.6	40	2	largest of 23 chunk peaks at this k
+wwmj5	14	7	NA	NA	49.0	64	2	not measured; peak at k13 (largest over 5 species), smaller k needs more
+gbmr7	23	7	23	9.9	27.4	40	2	largest of 23 chunk peaks at this k
+funcgroups8	13	7	23	8.4	29.4	40	2	largest of 23 chunk peaks at this k
+sdm12	11	7	23	8.2	28.3	40	2	largest of 23 chunk peaks at this k
+mmseqs12	10	7	23	7.1	13.1	32	2	largest of 23 chunk peaks at this k
+wass14	9	7	23	8.4	25.6	32	2	largest of 23 chunk peaks at this k
+hsdm17	9	7	NA	NA	50.6	64	2	not measured; peak at the smaller k8, which needs more
+uniprot18	8	7	NA	NA	51.4	72	2	not measured; peak at the smaller k7, which needs more

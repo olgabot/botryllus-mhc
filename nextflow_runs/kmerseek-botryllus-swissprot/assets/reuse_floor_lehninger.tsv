@@ -1,0 +1,9 @@
+alphabet	n_classes	bits_per_position	protein20_k	ksize	bits_per_kmer	penalty	xdrop	reference_alphabet	reference_k	reference_bits	rounding
+protein20	20	4.06387470	6	6	24.38324821	0.14	0.57	hp_lehninger2	27	26.87733067	floor
+dayhoff6	6	2.11733881	6	12	25.40806566	0.41	1.65	hp_lehninger2	27	26.87733067	floor
+wwmj5	5	2.07143194	6	12	24.85718324	0.47	1.89	hp_lehninger2	27	26.87733067	floor
+funcgroups8	8	2.29538599	6	11	25.24924584	2	8	hp_lehninger2	27	26.87733067	floor
+sdm12	12	2.79739639	6	9	25.17656747	0.24	0.94	hp_lehninger2	27	26.87733067	floor
+mmseqs12	12	3.08342104	6	8	24.66736829	0.22	0.89	hp_lehninger2	27	26.87733067	floor
+hsdm17	17	3.31735498	6	8	26.53883984	0.18	0.7	hp_lehninger2	27	26.87733067	floor
+uniprot18	18	3.82484301	6	7	26.77390104	0.15	0.6	hp_lehninger2	27	26.87733067	floor
