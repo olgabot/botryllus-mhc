@@ -280,6 +280,13 @@ process S4PRED_SPLIT {
 // protein, and the task turns them into one table: protein, position, residue, predicted
 // state (C coil, H helix, E strand) and the three probabilities. And one FASTA-style file
 // with each protein's state string under its sequence.
+//
+// s4pred names each file after the protein, so a "/" in a name (5 proteins, such as
+// FUN039006_SODIUM/HYDROGEN) makes it write into a folder that does not exist, and the chunk
+// fails after 2 hours of work (2026-10-31). It also turns names into capitals. So s4pred gets
+// numbers (P1, P2, ...) and the real names come back from ids.tsv. awk reads the names from
+// that file, because `awk -v` drops backslashes (52 proteins: FUN043465_XELEMENT\ORF2 came
+// out as XELEMENTORF2).
 process S4PRED {
     tag "${chunk.baseName}"
     container params.s4pred_sif
@@ -297,19 +304,25 @@ process S4PRED {
     script:
     """
     set -o pipefail
+    awk '/^>/ {n++; print ">P" n; print "P" n "\\t" substr(\$0, 2) > "ids.tsv"; next} {print}' ${chunk} > ids.fasta
     mkdir ss2
-    run_model --outfmt ss2 --threads ${task.cpus} --save-files --outdir ss2 ${chunk} > /dev/null
-    want=\$(grep -c '^>' ${chunk})
+    run_model --outfmt ss2 --threads ${task.cpus} --save-files --outdir ss2 ids.fasta > /dev/null
+    want=\$(grep -c '^>' ids.fasta)
     got=\$(ls ss2 | wc -l)
     [ "\$got" -eq "\$want" ] || { echo "s4pred wrote \$got of \$want proteins" >&2; exit 1; }
-    for f in ss2/*.ss2; do
-        p=\$(basename "\$f" .ss2)
-        awk -v p="\$p" 'NF == 6 && \$1 ~ /^[0-9]+\$/ {print p"\\t"\$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t"\$5"\\t"\$6}' "\$f"
-    done | gzip > ${chunk.baseName}.s4pred.tsv.gz
-    for f in ss2/*.ss2; do
-        p=\$(basename "\$f" .ss2)
-        awk -v p="\$p" 'NF == 6 && \$1 ~ /^[0-9]+\$/ {s = s \$2; t = t \$3} END {print ">"p; print s; print t}' "\$f"
-    done > ${chunk.baseName}.s4pred.ss.fasta
+    # NR == FNR: reading ids.tsv. FNR == 1: the first line of the next .ss2 file.
+    names='NR == FNR {split(\$0, a, "\\t"); name[a[1]] = a[2]; next}
+           FNR == 1 {p = FILENAME; sub(/^.*\\//, "", p); sub(/\\.ss2\$/, "", p)
+                     if (!(p in name)) {print "no name for " p > "/dev/stderr"; exit 1}
+                     p = name[p]}'
+    awk "\$names"'
+        NF == 6 && \$1 ~ /^[0-9]+\$/ {print p "\\t" \$1 "\\t" \$2 "\\t" \$3 "\\t" \$4 "\\t" \$5 "\\t" \$6}' \\
+        ids.tsv ss2/*.ss2 | gzip > ${chunk.baseName}.s4pred.tsv.gz
+    awk 'function flush() {if (q != "") {print ">" q; print s; print t}}
+         FNR == 1 && NR != FNR {flush(); s = t = ""}'"\$names"'
+         {q = p}
+         NF == 6 && \$1 ~ /^[0-9]+\$/ {s = s \$2; t = t \$3}
+         END {flush()}' ids.tsv ss2/*.ss2 > ${chunk.baseName}.s4pred.ss.fasta
     """
 
     stub:
