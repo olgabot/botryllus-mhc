@@ -72,3 +72,8 @@ and k6 (reuse of 23 real completed tables). Full head job 50500676 depends on it
 successful completion. At submission, the test was pending for priority and the
 head was pending for its dependency. Three local unit tests pass. The original
 results pass the independent summary-count checks. The new run is not complete.
+
+The wiring test then passed in 39 seconds. Its combined summary preserves the real
+protein20 k6 count of 12,366 strong matches and labels it with the new hp_lehninger2
+k27 floor reference. The protein20 k5 row is synthetic test output, not a result.
+Head job 50500676 is now pending for scheduler priority; the dependency is satisfied.
