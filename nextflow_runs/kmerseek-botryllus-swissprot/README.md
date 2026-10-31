@@ -115,3 +115,21 @@ make sherlock-stub          # SLURM: the workflow wiring with no kmerseek
 make sherlock-run           # SLURM head job
 make sherlock-status        # one look; at least 60 s between looks
 ```
+
+## Completed original run and added floor-rounded comparison
+
+The original 38-pair run completed on 30 October: 874 successful search tasks,
+including 87 reused tasks. All pair counts were checked against the per-query
+summary rows, with 45,339 distinct query proteins. The summary tables are in
+`results/summary/` and the trace is `results/trace.txt`.
+
+![Share of Botryllus proteins with a Swiss-Prot match](figures/kmerseek_botryllus_swissprot_match_share.png)
+
+Each point gives the fraction of 45,339 proteins with a match at E ≤ 0.001.
+Blue circles use the protein20 k6 bit threshold; orange squares use k7.
+Three pairs lack an E-value fit and are marked unavailable. More matches alone
+do not establish more accurate annotations.
+
+The additional hp_lehninger2 k24/k27 comparison uses floor rounding, as requested
+on 31 October. Its pair table, resource estimates and separate output paths are
+recorded in [floor_lehninger.md](floor_lehninger.md). Results remain pending.

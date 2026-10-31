@@ -123,7 +123,8 @@ process KMERSEEK_SEARCH {
     publishDir "${params.outdir}/best/${alphabet}.k${ksize}", mode: 'copy', pattern: '*.best.tsv'
     publishDir "${params.outdir}/logs/${alphabet}.k${ksize}", mode: 'copy', pattern: '*.log'
     cpus 4
-    memory { 1.GB * (mem_gb as int) * task.attempt }
+    memory { 1.GB * Math.min(500, (mem_gb as int) * task.attempt) }
+    maxForks 200
     time   { 1.h * (time_h as int) * task.attempt }
 
     input:
@@ -221,6 +222,21 @@ process COLLECT {
 
 workflow {
     def resources = searchResources()
+    // Reuse only an explicit list from the same query, target, version and settings.
+    def reuseKeys = [] as Set
+    def reusedFiles = []
+    if (params.reuse_pairs) {
+        if (!params.reuse_best_dir) error 'reuse_pairs requires reuse_best_dir'
+        file(params.reuse_pairs).splitCsv(header: true, sep: '\t').each { r ->
+            def key = "${r.alphabet}.k${r.ksize}".toString()
+            reuseKeys.add(key)
+            def files = file("${params.reuse_best_dir}/${key}/*.best.tsv", checkIfExists: true)
+            def expected = (0..<23).collect { String.format('chunk_%04d.%s.best.tsv', it, key) } as Set
+            if ((files.collect { it.name } as Set) != expected)
+                error "Expected all 23 completed chunks for reused pair ${key}"
+            reusedFiles.addAll(files)
+        }
+    }
     def pairs = Channel.fromPath(params.pairs)
         .splitCsv(header: true, sep: '\t')
         .map { r -> [r.alphabet, r.ksize, r.protein20_k, r.penalty, r.xdrop] }
@@ -236,13 +252,15 @@ workflow {
             if (r == null) error "no row for ${a} k${k} in ${params.search_resources}"
             [a, k, p20, pen, xd, idx, r[0], r[1]] }
         .combine(PREPARE_QUERY.out.chunks.flatten())
-    KMERSEEK_SEARCH(jobs)
+    KMERSEEK_SEARCH(jobs.filter { a, k, p20, pen, xd, idx, mem, hours, chunk ->
+        !reuseKeys.contains("${a}.k${k}".toString())
+    })
 
     // One line per pair: alphabet, ksize, fitted or unfitted.
     def fitStatus = indexes
         .map { a, k, p20, pen, xd, idx -> "${a}\t${k}\t${idx.resolve('fit_status.txt').text.trim()}" }
         .collectFile(name: 'fit_status.tsv', newLine: true, sort: true)
 
-    COLLECT(file(params.pairs), KMERSEEK_SEARCH.out.best.map { it[3] }.collect(), fitStatus,
+    COLLECT(file(params.pairs), KMERSEEK_SEARCH.out.best.map { it[3] }.mix(Channel.fromList(reusedFiles)).collect(), fitStatus,
             reference, PREPARE_QUERY.out.chunks.collect())
 }

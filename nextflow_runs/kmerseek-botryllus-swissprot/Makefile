@@ -98,3 +98,37 @@ pull:
 	rsync -av $(SHERLOCK_HOST):$(SH_BASE)/results/summary/ results/summary/
 	rsync -av $(SHERLOCK_HOST):$(SH_BASE)/results/query/ results/query/
 	rsync -av $(SHERLOCK_HOST):$(SH_BASE)/results/pipeline_info/trace.txt results/trace.txt
+
+# Separate outputs and work; shared read-only inputs and completed indexes.
+FLOOR_BASE ?= $(SH_BASE)-floor-lehninger
+DARK_TRACE ?= $(SCRATCH)/2024-kmerseek-invertebrate-dark-set-0.4/nextflow-runs/invertebrate-dark-set/runs/ladder-0.4-midi/trace.ladder-0.4-midi.txt
+
+.PHONY: measure-floor-resources sherlock-floor-run pull-floor
+measure-floor-resources:
+	mkdir -p $(FLOOR_BASE)/measured/history $(FLOOR_BASE)/logs
+	python3 bin/measure_floor_resources.py --pairs assets/pairs_floor_lehninger.tsv \
+	  --current $(SH_BASE)/results/pipeline_info/trace.txt --historical $(DARK_TRACE) \
+	  --output $(FLOOR_BASE)/measured/baseline.tsv
+	@if [ -f $(FLOOR_BASE)/results/pipeline_info/trace.txt ]; then \
+	  install -m 644 $(FLOOR_BASE)/results/pipeline_info/trace.txt $(FLOOR_BASE)/measured/history/trace-$$(date +%Y%m%dT%H%M%S).tsv; fi
+	python3 bin/measure_resources.py --baseline $(FLOOR_BASE)/measured/baseline.tsv \
+	  --history $(FLOOR_BASE)/measured/history --output $(FLOOR_BASE)/measured/search_resources.tsv
+
+sherlock-floor-run: measure-floor-resources
+	sbatch --job-name=kss-floor --partition=hns,normal --account=ayeletv $(AFTER) \
+	  --cpus-per-task=2 --mem=$(HEAD_MEM) --time=$(HEAD_TIME) --output=$(FLOOR_BASE)/logs/head-%j.out \
+	  --wrap='$(SH_LOAD) set -euo pipefail; cd $(FLOOR_BASE); \
+	    $(SH_NEXTFLOW) run $(CURDIR)/main.nf -profile sherlock -resume \
+	      --query $(SH_BASE)/input/botryllus_unique_names.fasta \
+	      --swissprot_fasta $(SH_BASE)/input/uniprot_sprot_2026_03.fasta.gz \
+	      --pairs $(CURDIR)/assets/pairs_floor_lehninger.tsv \
+	      --reuse_pairs $(CURDIR)/assets/reuse_floor_lehninger.tsv \
+	      --reuse_best_dir $(SH_BASE)/results/best \
+	      --search_resources $(FLOOR_BASE)/measured/search_resources.tsv \
+	      --outdir $(FLOOR_BASE)/results --index_dir $(SH_BASE)/indexes \
+	      -work-dir $(FLOOR_BASE)/work'
+
+pull-floor:
+	mkdir -p results_floor_lehninger
+	rsync -av $(SHERLOCK_HOST):$(FLOOR_BASE)/results/summary/ results_floor_lehninger/summary/
+	rsync -av $(SHERLOCK_HOST):$(FLOOR_BASE)/results/pipeline_info/trace.txt results_floor_lehninger/trace.txt

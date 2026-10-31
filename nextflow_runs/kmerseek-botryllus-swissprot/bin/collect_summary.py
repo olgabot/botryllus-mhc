@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 
-from __future__ import annotationsSummarise the kmerseek Botryllus vs Swiss-Prot search across alphabet-ksize pairs.
+Summarise the kmerseek Botryllus vs Swiss-Prot search across alphabet-ksize pairs.
 
 Reads one <chunk>.<alphabet>.k<k>.best.tsv per search task (one row per Botryllus protein
 with a kept match: number of Swiss-Prot proteins matched, number at the strong cutoff or
@@ -71,7 +71,7 @@ def main() -> None:
 
     with open(f"{a.out_prefix}.pairs.tsv", "w") as out:
         out.write("alphabet\tksize\tprotein20_k\tbits_per_kmer\tfit\tstatistic\t"
-                  f"n_botryllus_proteins\tn_with_match\tn_with_strong_match\tshare_with_strong_match\n")
+                  f"n_botryllus_proteins\tn_with_match\tn_with_strong_match\tshare_with_strong_match\treference_alphabet\treference_k\treference_bits\trounding\n")
         for p in pairs:
             key = (p["alphabet"], p["ksize"])
             rows = best[key]
@@ -79,7 +79,9 @@ def main() -> None:
             n_strong = sum(1 for r in rows.values() if int(r["n_targets_strong"]) > 0)
             out.write(f"{p['alphabet']}\t{p['ksize']}\t{p['protein20_k']}\t{p['bits_per_kmer']}\t"
                       f"{fit.get(key, 'missing')}\t{stat}\t{n_queries}\t{len(rows)}\t{n_strong}\t"
-                      f"{n_strong / n_queries:.4f}\n")
+                      f"{n_strong / n_queries:.4f}\t{p.get('reference_alphabet', 'protein20')}\t"
+                      f"{p.get('reference_k', p['protein20_k'])}\t{p.get('reference_bits', '')}\t"
+                      f"{p.get('rounding', 'ceil')}\n")
 
     with gzip.open(f"{a.out_prefix}.best_per_protein_per_pair.tsv.gz", "wt") as out:
         out.write("query_name\talphabet\tksize\tprotein20_k\tstatistic\tn_targets\t"
