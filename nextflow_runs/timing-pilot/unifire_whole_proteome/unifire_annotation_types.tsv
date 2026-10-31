@@ -1,0 +1,14 @@
+rule_set	kind	predictions
+ARBA	keyword	59583
+ARBA	comment	39664
+ARBA	xref	38127
+ARBA	protein	8166
+PIRSR	feature	4662
+PIRSR	keyword	1954
+PIRSR	comment	459
+UniRule	keyword	32111
+UniRule	xref	14635
+UniRule	feature	14484
+UniRule	comment	11356
+UniRule	protein	6358
+UniRule	gene	36
