@@ -64,3 +64,11 @@ reference_bits and rounding. The legacy protein20_k field records the floor-roun
 protein20 size (5 or 6); it is not the new comparison's reference label.
 
 Historical trace SHA256: `aba305259fe1c39e1ce868947dd525fad1e479421ac5acd866890447963e25be`.
+
+## Submission
+
+On 31 October, wiring-test job 50500295 was submitted for protein20 k5 (stub search)
+and k6 (reuse of 23 real completed tables). Full head job 50500676 depends on its
+successful completion. At submission, the test was pending for priority and the
+head was pending for its dependency. Three local unit tests pass. The original
+results pass the independent summary-count checks. The new run is not complete.
