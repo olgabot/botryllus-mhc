@@ -16,8 +16,10 @@ this good expected by chance in the whole search; below 1 is the usual cut-off.
 
 kmerseek 0.4.0 finds the same matches at the same positions. The 2021 run had no
 significance test: sourmash ranked proteins by shared k-mers and every match was drawn.
-kmerseek 0.4.0 gives each match an E-value, and every BHF hit has E > 1. The best is DHX8
-at 3.4. TSHZ1 is at 42, TSHZ3 at 74, TRAPPC10 at 84 and TSHZ2 at 110-127.
+kmerseek 0.4.0 gives each match an E-value. With low-complexity k-mers kept, every BHF hit
+has E > 1. The best is DHX8 at 3.4. TSHZ1 is at 42, TSHZ3 at 74, TRAPPC10 at 84 and TSHZ2
+at 110-127. With low-complexity k-mers removed, one hit passes: DHX8 at E = 0.50, matched
+over BHF 49-113, the lysine-rich stretch the 2021 figure matched to RNMT.
 
 Of the 22 genes the 2021 run found, 17 are among kmerseek's 62 genes (66 hits), and 8 of
 kmerseek's 13 best hits are 2021 genes. The 5 with no kmerseek hit are CCDC96, HMGB3,
@@ -53,6 +55,24 @@ with human proteins. To compare with 2021, use `hp_lehninger2`.
   and K35. The match is a shared pattern of hydrophobic and polar residues, not a shared
   zinc-binding site.
 - **TRAPPC10 (b).** 29 of 30 HP letters agree; 3 of 30 amino acids are the same.
+
+## Has kmerseek changed since this run?
+
+These results come from kmerseek release-0.4.0 (commit 0aed5ca, 2026-09-21). Between then
+and 2026-10-24, 16 merged PRs changed kmerseek's source. None has been run on BHF yet.
+Sorted by what each can do to the numbers above:
+
+| PRs | What they change | Effect on these BHF hits |
+|---|---|---|
+| 110, 111 | How the E-value fit reads its chance curve | None. Measured on 2026-09-22: all 66 E-values the same, bit for bit (`~/data/botryllus/kmerseek-isolate/BHF_commit_by_commit.png`) |
+| 56, 57, 76, 96, 97, 132 | Ambiguous residues (B, J, Z) | None. BHF and all 62 human proteins it hits have none |
+| 93, 158, 65, 77 | Output order, speed, an extra column, code layout | None |
+| 136 | Chance count of shared k-mers scaled by the target's length | Changes the Poisson p-values, not the E-values |
+| 67, 75 | Extension and E-value code rewritten on main (`evalue.rs`) | Unknown. Same formula, E = K m n e^(-lambda S), but the fit was rewritten. Needs a rerun |
+
+One change was tested on BHF but never merged: lambda fitted per region (commit 982a055).
+It moved E-values a lot (SFI1 34 to 3.3, TSHZ2 110 to 14, DHX8 3.4 to no E-value at all),
+but none went below 1.
 
 Table: [`232_bhf_zinc_finger_trappc10_kmerseek_v040.csv`](232_bhf_zinc_finger_trappc10_kmerseek_v040.csv).
 Script: [`notebooks/232_bhf_2021_vs_kmerseek_0.4.py`](../notebooks/232_bhf_2021_vs_kmerseek_0.4.py).
