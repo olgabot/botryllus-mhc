@@ -59,8 +59,7 @@ with human proteins. To compare with 2021, use `hp_lehninger2`.
 ## Has kmerseek changed since this run?
 
 These results come from kmerseek release-0.4.0 (commit 0aed5ca, 2026-09-21). Between then
-and 2026-10-24, 16 merged PRs changed kmerseek's source. None has been run on BHF yet.
-Sorted by what each can do to the numbers above:
+and 2026-10-24, 16 merged PRs changed kmerseek's source. Sorted by what each can do to the numbers above:
 
 | PRs | What they change | Effect on these BHF hits |
 |---|---|---|
@@ -68,11 +67,42 @@ Sorted by what each can do to the numbers above:
 | 56, 57, 76, 96, 97, 132 | Ambiguous residues (B, J, Z) | None. BHF and all 62 human proteins it hits have none |
 | 93, 158, 65, 77 | Output order, speed, an extra column, code layout | None |
 | 136 | Chance count of shared k-mers scaled by the target's length | Changes the Poisson p-values, not the E-values |
-| 67, 75 | Extension and E-value code rewritten on main (`evalue.rs`) | Unknown. Same formula, E = K m n e^(-lambda S), but the fit was rewritten. Needs a rerun |
+| 67, 75 | Extension and E-value code rewritten on main (`evalue.rs`) | E-values 0.3-0.9% lower; nothing else changes (rerun below) |
 
 One change was tested on BHF but never merged: lambda fitted per region (commit 982a055).
 It moved E-values a lot (SFI1 34 to 3.3, TSHZ2 110 to 14, DHX8 3.4 to no E-value at all),
 but none went below 1.
+
+### Rerun on Sherlock, 2026-11-01
+
+![Change in each BHF region's E-value from kmerseek 0.4.0 to main](../figures/233_bhf_kmerseek_main_vs_v040.png)
+
+Each dot is one of BHF's 66 matched regions; **a** with low-complexity k-mers kept, **b**
+with them removed. The x-axis is the region's E-value under 0.4.0, the y-axis how much it
+changed under main. Colours as in panel c above.
+
+Sherlock job 50705495 built kmerseek main (fd549f9, 2026-10-24) and release-0.4.0
+(0aed5ca) and ran both with the September settings (hp_lehninger2, k = 24, scaled 1,
+mismatch penalty 1.63, X-drop 6.52, 200 fit queries, seed 1), BHF as the only query
+(`scripts/232_bhf_kmerseek_main_vs_v040.sbatch`).
+
+- The 0.4.0 rerun gives back the September results exactly: the same 66 regions and the
+  same E-values in both arms. So the setup matches September, and searching BHF on its
+  own gives the same numbers as searching it with all Botryllus proteins.
+- Main finds the same 66 regions in the same 62 genes, with the same start, end and
+  mismatch count. Its E-values are 0.3% to 0.9% lower, more so for the better hits. The
+  fit of the chance curve counted 105,610 regions on main and 106,005 on 0.4.0; both fits
+  have slope 0.494.
+- Nothing crosses E = 1. With low-complexity k-mers kept the best hit is still DHX8 (3.38
+  to 3.36). With them removed DHX8 is still the only hit below 1 (0.504 to 0.499). TSHZ1
+  goes from 42.3 to 42.1 and TRAPPC10 from 83.9 to 83.5.
+- The Poisson tail probabilities of the regions are the same in both builds.
+- main's binary still calls itself `kmerseek 0.3.1`; the 0.4.0 release lives on its own
+  branch.
+
+Table: [`233_bhf_kmerseek_main_vs_v040.csv`](233_bhf_kmerseek_main_vs_v040.csv) (best
+E-value per gene, both builds, both arms). Raw search output: `results/233_sherlock/`.
+Script: [`notebooks/233_bhf_kmerseek_main_vs_v040.py`](../notebooks/233_bhf_kmerseek_main_vs_v040.py).
 
 Table: [`232_bhf_zinc_finger_trappc10_kmerseek_v040.csv`](232_bhf_zinc_finger_trappc10_kmerseek_v040.csv).
 Script: [`notebooks/232_bhf_2021_vs_kmerseek_0.4.py`](../notebooks/232_bhf_2021_vs_kmerseek_0.4.py).
