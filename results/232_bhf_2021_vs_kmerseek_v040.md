@@ -7,8 +7,10 @@ residues 173-202 (the 2021 "membrane tether" match) against TRAPPC10 residues 83
 rows are the BHF residue, its HP letter, the human HP letter and the human residue. HP is
 Lehninger's split, the same one sourmash used in 2021 (h = A F G I L M P V W Y, p = C D E H
 K N Q R S T). **c.** E-value of all 66 human hits to BHF (kmerseek 0.4.0, Lehninger HP, k = 24,
-every k-mer indexed, low-complexity k-mers kept). The E-value is the number of hits this
-good expected by chance in the whole search; below 1 is the usual cut-off.
+every k-mer indexed, low-complexity k-mers kept), coloured by what the 2021 sourmash run
+found: blue, drawn in the 2021 BHF figure; orange, in the 2021 search or gather results
+(notebook 005) but not drawn; grey, not found in 2021. The E-value is the number of hits
+this good expected by chance in the whole search; below 1 is the usual cut-off.
 
 ## What changed since 2021
 
@@ -16,6 +18,11 @@ kmerseek 0.4.0 finds the same matches at the same positions. The 2021 run had no
 significance test: sourmash ranked proteins by shared k-mers and every match was drawn.
 kmerseek 0.4.0 gives each match an E-value, and every BHF hit has E > 1. The best is DHX8
 at 3.4. TSHZ1 is at 42, TSHZ3 at 74, TRAPPC10 at 84 and TSHZ2 at 110-127.
+
+Of the 22 genes the 2021 run found, 17 are among kmerseek's 62 genes (66 hits), and 8 of
+kmerseek's 13 best hits are 2021 genes. The 5 with no kmerseek hit are CCDC96, HMGB3,
+IFT122, MYRFL and TNPO2. kmerseek ranks the matches much as sourmash did; what changed is
+that it now says how likely they are by chance.
 
 The E-value here is m × n × 2^-bits, with m = 229 (BHF length minus k plus 1) and n =
 11.8 million human residues. That makes 2.7 billion places to start a match, so a match

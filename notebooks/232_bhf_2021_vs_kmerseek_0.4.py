@@ -133,21 +133,35 @@ labels = [
 ]
 ax_a.legend(handles, labels, ncol=4, loc="lower left", bbox_to_anchor=(0, 1.15), frameon=False)
 
-# Panel c: E-value of every BHF hit in this arm, focus genes in blue.
+# Panel c: E-value of every BHF hit in this arm, coloured by whether the 2021 run found it.
+# 2021 lists: sourmash search + gather results printed in notebooks/005_bhf_kmer_matches.ipynb
+# (cells 4 and 6); the figure genes are the ones drawn in the 2021 BHF figure.
+FIG_2021 = ["ZNF292", "RSF1", "TSHZ1", "TSHZ2", "TSHZ3", "RNMT", "SFI1", "TRAPPC10", "NDNF"]
+HITS_2021 = FIG_2021 + [
+    "ADGB", "CCDC96", "DHX8", "HMGB3", "IFT122", "JMJD1C", "MYRFL", "ORC2", "PDIA5", "PNN",
+    "SLC16A7", "TNPO2", "ZNF713",
+]
+missing = sorted(set(HITS_2021) - set(arm["gene"]))
+print("2021 genes with no kmerseek 0.4.0 hit in this arm:", missing)
 d = arm.sort("region_evalue").with_row_index("rank")
-is_focus = d["gene"].is_in(FOCUS).to_numpy()
-ax_c.scatter(d["rank"].to_numpy()[~is_focus], d["region_evalue"].to_numpy()[~is_focus], s=6, color=pf.GREY, label="other human proteins")
-ax_c.scatter(d["rank"].to_numpy()[is_focus], d["region_evalue"].to_numpy()[is_focus], s=10, color=pf.OKABE_ITO["blue"], label="TSHZ1, TSHZ2, TSHZ3, TRAPPC10")
+groups = [
+    ("not found in 2021", ~d["gene"].is_in(HITS_2021), pf.GREY, 6),
+    ("found in 2021, not in the 2021 figure", d["gene"].is_in(HITS_2021) & ~d["gene"].is_in(FIG_2021), pf.OKABE_ITO["orange"], 10),
+    ("in the 2021 figure", d["gene"].is_in(FIG_2021), pf.OKABE_ITO["blue"], 10),
+]
+for label, mask, colour, size in groups:
+    sub = d.filter(mask)
+    ax_c.scatter(sub["rank"], sub["region_evalue"], s=size, color=colour, label=label, zorder=3)
 ax_c.axhline(1, color="black", lw=0.5, ls="--", label="E-value = 1")
-for r in d.filter(pl.col("gene").is_in(FOCUS + ["DHX8"])).iter_rows(named=True):
-    label = r["gene"] if r["gene"] != "TSHZ2" else f'TSHZ2 (BHF {r["region_start"] + 1}-{r["region_end"]})'
-    ax_c.annotate(label, (r["rank"], r["region_evalue"]), xytext=(2, -9) if r["region_start"] == 9 and r["gene"] == "TSHZ2" else (2, 4), textcoords="offset points", fontsize=5)
+for r in d.filter(pl.col("gene").is_in(HITS_2021)).iter_rows(named=True):
+    ax_c.annotate(r["gene"], (r["rank"], r["region_evalue"]), xytext=(0, 4), textcoords="offset points",
+                  fontsize=5, rotation=90, ha="center", va="bottom")
 ax_c.set_yscale("log")
-ax_c.set_yticks([1, 3, 10, 30, 100, 300], ["1", "3", "10", "30", "100", "300"])
-ax_c.set_ylim(0.7, 500)
+ax_c.set_yticks([1, 10, 100, 1000], ["1", "10", "100", "1,000"])
+ax_c.set_ylim(0.7, 3000)
 ax_c.set_xlabel("Human hits to BHF, ranked by E-value")
 ax_c.set_ylabel("E-value")
-ax_c.legend(loc="upper left", frameon=False)
+ax_c.legend(loc="lower right", bbox_to_anchor=(1, 0.08), frameon=False)
 
 for ax, letter in zip((ax_a, ax_b, ax_c), "abc"):
     pf.panel_label(ax, letter)
